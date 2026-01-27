@@ -12,7 +12,7 @@ agents/catalog/meu_agente/
 └── state.py      # Estado do agente (TypedDict)
 ```
 
-A função `build_graph(checkpointer=None)` é o ponto de entrada. Ela retorna um grafo compilado do LangGraph.
+A função `build_graph(checkpointer=None, store=None)` é o ponto de entrada. Ela retorna um grafo compilado do LangGraph.
 
 ## Passo a Passo
 
@@ -110,7 +110,7 @@ https://sua-api.up.railway.app/webhook/twilio?agent=meu_agente
 
 ## Middleware de Memória
 
-Os agentes podem usar dois middlewares para gerenciar o tamanho do contexto:
+Os agentes podem usar três middlewares para gerenciar memória:
 
 ### Trim (recomendado para começar)
 
@@ -146,14 +146,61 @@ graph.add_edge("summarize", "model")
 
 **Quando usar**: Conversas longas onde o histórico é importante (ex: suporte ao cliente).
 
+### Semantic Memory (opcional)
+
+Lembra fatos sobre o usuário entre conversas. Requer `SEMANTIC_MEMORY_ENABLED=true` no `.env`.
+
+```python
+from langgraph.store.base import BaseStore
+
+def build_graph(checkpointer=None, store=None):
+    llm = ChatOpenAI(
+        model="openai/gpt-4o-mini",
+        base_url="https://openrouter.ai/api/v1",
+    )
+
+    async def call_model(state: AgentState, *, store: BaseStore):
+        # Busca memórias relevantes sobre o usuário
+        memories = []
+        if store:
+            phone = state.get("phone", "unknown")
+            items = store.search(
+                ("user", phone, "memories"),
+                query=state["messages"][-1].content,
+                limit=5,
+            )
+            memories = [item.value["text"] for item in items]
+
+        system = SYSTEM_PROMPT
+        if memories:
+            system += "\n\n## Memórias sobre este usuário:\n"
+            system += "\n".join(f"- {m}" for m in memories)
+
+        messages = [SystemMessage(content=system)] + state["messages"]
+        response = await llm.ainvoke(messages)
+        return {"messages": [response]}
+
+    graph = StateGraph(AgentState)
+    graph.add_node("model", call_model)
+    graph.add_edge(START, "model")
+    graph.add_edge("model", END)
+
+    return graph.compile(checkpointer=checkpointer, store=store)
+```
+
+O `store` é injetado automaticamente pelo LangGraph quando disponível. Se `SEMANTIC_MEMORY_ENABLED=false`, o parâmetro `store` será `None` e o agente funciona normalmente sem memória semântica.
+
+**Quando usar**: Agentes que precisam lembrar preferências, histórico de compras, ou fatos sobre o usuário ao longo do tempo.
+
 ### Trade-offs
 
-| | Trim | Summarize |
-|--|------|-----------|
-| **Custo** | Zero | 1 chamada LLM extra |
-| **Contexto perdido** | Mensagens antigas descartadas | Resumo preserva contexto |
-| **Latência** | Zero | +1-2s por sumarização |
-| **Melhor para** | Conversas curtas, FAQ | Suporte, vendas complexas |
+| | Trim | Summarize | Semantic Memory |
+|--|------|-----------|-----------------|
+| **Custo** | Zero | 1 chamada LLM extra | ~$0.02/1M tokens (embedding) |
+| **Escopo** | Thread (1 conversa) | Thread (1 conversa) | Cross-thread (todas) |
+| **Contexto** | Últimas N msgs | Resumo + recentes | Fatos do usuário |
+| **Latência** | Zero | +1-2s | +10-70ms |
+| **Melhor para** | FAQ, conversas curtas | Suporte longo | Personalização |
 
 ## Agente com Tools
 

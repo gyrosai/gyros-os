@@ -163,6 +163,10 @@ Suporte configurável a imagem e áudio:
 
 ## Memória dos Agentes
 
+O sistema oferece dois tipos de memória:
+
+### Memória de Conversa (Checkpointer)
+
 Cada conversa tem um `thread_id` no formato `{phone}:{agent_id}`. O checkpointer do LangGraph salva todo o histórico no PostgreSQL.
 
 Para evitar que o contexto cresça infinitamente, dois middlewares estão disponíveis:
@@ -171,6 +175,20 @@ Para evitar que o contexto cresça infinitamente, dois middlewares estão dispon
 |-----------|--------------|-------|
 | **Trim** | Mantém apenas as últimas N mensagens | Zero (descarta) |
 | **Summarize** | Sumariza mensagens antigas com LLM | 1 chamada extra |
+
+### Memória Semântica (Store) — Opcional
+
+Além do histórico de conversa, o agente pode lembrar **fatos sobre o usuário** entre conversas diferentes. Exemplos: "prefere linguagem formal", "é alérgico a amendoim", "já comprou produto X".
+
+Usa o `Store` do LangGraph com **pgvector** para busca por similaridade:
+
+- **Escopo**: Cross-thread (todas as conversas de um usuário)
+- **Busca**: Semântica (por significado, não por palavras exatas)
+- **Storage**: Mesmo PostgreSQL (extensão pgvector)
+- **Custo**: ~$0.02/1M tokens de embedding (negligível)
+- **Habilitável via**: `SEMANTIC_MEMORY_ENABLED=true`
+
+Quando habilitada, o docker-compose usa `pgvector/pgvector:pg16` em vez de `postgres:16`.
 
 Escolha por agente. Veja [Criando Agentes](ADDING_AGENTS.md).
 
@@ -181,7 +199,7 @@ Escolha por agente. Veja [Criando Agentes](ADDING_AGENTS.md).
 | Agentes | LangGraph 1.0+ |
 | LLM | OpenRouter (multi-model) |
 | API | FastAPI |
-| Database | PostgreSQL 16+ |
+| Database | PostgreSQL 16+ (pgvector para memória semântica) |
 | Frontend | Next.js + shadcn/ui + Tailwind |
 | WhatsApp | Twilio API |
 | Logs | structlog (JSON prod, pretty dev) |
@@ -202,6 +220,8 @@ Toda a configuração é feita via variáveis de ambiente. Veja `.env.example` p
 | `MESSAGE_BUFFER_SECONDS` | `2.0` | Janela de debounce |
 | `MEDIA_IMAGE_ENABLED` | `true` | Suporte a imagem |
 | `MEDIA_AUDIO_ENABLED` | `true` | Suporte a áudio |
+| `SEMANTIC_MEMORY_ENABLED` | `false` | Memória semântica (pgvector) |
+| `EMBEDDING_MODEL` | `openai:text-embedding-3-small` | Modelo de embedding |
 | `POLL_INTERVAL_SECONDS` | `1.0` | Intervalo de polling do Worker |
 | `ADMIN_USER` | `admin` | Usuário do Admin Panel |
 | `ADMIN_PASSWORD` | — | Senha do Admin Panel |

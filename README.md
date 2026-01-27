@@ -64,7 +64,7 @@ whatsapp-langchain/
 │   ├── agents/                # Agentes de IA
 │   │   ├── catalog/           # Um diretório por agente
 │   │   │   └── assistant/     # Agente padrão
-│   │   └── middleware/        # Trim e Summarize
+│   │   └── middleware/        # Trim, Summarize e Semantic Memory
 │   ├── server/                # API (FastAPI)
 │   │   ├── routes/            # Endpoints
 │   │   └── services/          # Queue, Rate Limit
