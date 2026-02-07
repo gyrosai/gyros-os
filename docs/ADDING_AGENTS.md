@@ -132,12 +132,12 @@ agent = create_agent(
 
 ### Trim (configuração direta)
 
-Mantém apenas as últimas N mensagens. Simples e sem custo extra.
+Mantém apenas os últimos N turnos. Um turno = 1 HumanMessage + todas as respostas (AI, tools, etc). Simples e sem custo extra.
 
 ```python
 from whatsapp_langchain.agents.middleware import create_trim_middleware
 
-trim = create_trim_middleware(keep_messages=10)
+trim = create_trim_middleware(keep_turns=5)
 
 agent = create_agent(
     model=model,
@@ -185,7 +185,7 @@ summarize = create_summarize_middleware(
 |--|------|-----------|
 | **Custo** | Zero | 1 chamada LLM extra |
 | **Escopo** | Thread (1 conversa) | Thread (1 conversa) |
-| **Contexto** | Últimas N msgs | Resumo + recentes |
+| **Contexto** | Últimos N turnos | Resumo + recentes |
 | **Latência** | Zero | +1-2s |
 | **Melhor para** | FAQ, conversas curtas | Suporte longo |
 

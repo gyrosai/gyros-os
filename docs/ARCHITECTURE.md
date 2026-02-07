@@ -129,14 +129,21 @@ O trim usa o decorator `@before_model` do LangChain. Esse padrão executa códig
 @before_model
 def trim_messages(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
     messages = state["messages"]
-    if len(messages) <= keep_messages + 1:
+
+    # Encontra onde cada turno começa (cada HumanMessage)
+    boundaries = [i for i, m in enumerate(messages) if isinstance(m, HumanMessage)]
+
+    if len(boundaries) <= keep_turns:
         return None  # Não precisa fazer trim
-    first_msg = messages[0]  # Preserva system prompt
-    recent = messages[-keep_messages:]
-    return {"messages": [first_msg, *recent]}
+
+    # Remove tudo antes dos últimos N turnos
+    cutoff = boundaries[-keep_turns]
+    messages_to_remove = messages[:cutoff]
+
+    return {"messages": [RemoveMessage(id=m.id) for m in messages_to_remove if m.id]}
 ```
 
-Retornar `None` significa "não alterar o estado". Retornar um dict com `messages` substitui as mensagens.
+Retornar `None` significa "não alterar o estado". Retornar RemoveMessages remove as mensagens via reducer.
 
 #### `SummarizationMiddleware`
 
@@ -171,7 +178,7 @@ middlewares = get_context_middleware()
 Aceita overrides para testes:
 
 ```python
-middlewares = get_context_middleware(strategy="trim", trim_keep_messages=5)
+middlewares = get_context_middleware(strategy="trim", trim_keep_turns=3)
 ```
 
 ### Comparação: Trim vs Summarize
@@ -179,7 +186,7 @@ middlewares = get_context_middleware(strategy="trim", trim_keep_messages=5)
 | | Trim | Summarize |
 |--|------|-----------|
 | **Custo** | Zero | 1 chamada LLM extra |
-| **Contexto** | Últimas N msgs (perde o resto) | Resumo + recentes |
+| **Contexto** | Últimos N turnos (perde o resto) | Resumo + recentes |
 | **Latência** | Nenhuma | +1-2s por sumarização |
 | **Melhor para** | FAQ, conversas curtas | Suporte, vendas, conversas longas |
 
@@ -284,7 +291,7 @@ Para evitar que o contexto cresça infinitamente, dois middlewares estão dispon
 
 | Middleware | Como funciona | Custo | Status |
 |-----------|--------------|-------|--------|
-| **Trim** | Mantém apenas as últimas N mensagens | Zero (descarta) | Implementado |
+| **Trim** | Mantém apenas os últimos N turnos | Zero (descarta) | Implementado |
 | **Summarize** | Sumariza mensagens antigas com LLM | 1 chamada extra | Implementado |
 
 ### Memória Semântica (Store) — Opcional
@@ -321,7 +328,7 @@ Toda a configuração é feita via variáveis de ambiente. Veja `.env.example` p
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Base URL do LLM |
 | `OPENROUTER_MODEL` | `google/gemini-3-flash-preview` | Modelo principal do agente |
 | `CONTEXT_STRATEGY` | `trim` | Estratégia de contexto (trim/summarize/none) |
-| `TRIM_KEEP_MESSAGES` | `10` | Mensagens a manter no trim |
+| `TRIM_KEEP_TURNS` | `5` | Turnos a manter no trim |
 | `SUMMARIZE_TRIGGER_TOKENS` | `4000` | Tokens antes de sumarizar |
 | `SUMMARIZE_KEEP_MESSAGES` | `10` | Mensagens a manter após sumarização |
 | `SUMMARIZE_MODEL` | `google/gemini-3-flash-preview` | Modelo para sumarização |

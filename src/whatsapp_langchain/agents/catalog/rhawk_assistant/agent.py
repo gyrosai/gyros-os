@@ -10,7 +10,7 @@ Configuração via .env:
     OPENROUTER_API_KEY=sk-or-...       # API key do OpenRouter
     OPENROUTER_MODEL=anthropic/...     # Modelo principal
     CONTEXT_STRATEGY=trim              # trim | summarize | none
-    TRIM_KEEP_MESSAGES=10              # Mensagens a manter (trim)
+    TRIM_KEEP_TURNS=5                  # Turnos a manter (trim)
     SUMMARIZE_TRIGGER_TOKENS=4000      # Tokens antes de sumarizar
     SUMMARIZE_KEEP_MESSAGES=10         # Mensagens após sumarização
     SUMMARIZE_MODEL=anthropic/...      # Modelo para sumarização

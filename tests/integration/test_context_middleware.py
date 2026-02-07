@@ -11,7 +11,7 @@ import os
 import pytest
 from dotenv import load_dotenv
 from langchain.agents import create_agent
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
@@ -41,24 +41,25 @@ def model():
 
 
 class TestTrimMiddleware:
-    """Testes para a estratégia trim."""
+    """Testes para a estratégia trim (por turnos)."""
 
-    def test_trim_keeps_n_messages(self):
-        """Verifica que o trim mantém apenas N mensagens recentes."""
-        # Cria middleware com keep_messages=2
-        middleware = get_context_middleware(strategy="trim", trim_keep_messages=2)
+    def test_trim_creates_middleware(self):
+        """Verifica que o trim cria o middleware corretamente."""
+        middleware = get_context_middleware(strategy="trim", trim_keep_turns=2)
 
         assert len(middleware) == 1
         assert middleware[0] is not None
 
-    def test_trim_removes_old_messages(self):
-        """Invoca o middleware real e verifica remoção via reducer."""
+    def test_trim_removes_old_turns(self):
+        """Invoca o middleware real e verifica remoção de turnos antigos."""
         from langgraph.graph import add_messages
 
         from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
 
-        mw = create_trim_middleware(keep_messages=4)
+        # keep_turns=2 → mantém os últimos 2 turnos
+        mw = create_trim_middleware(keep_turns=2)
 
+        # 4 turnos: [h1 a1] [h2 a2] [h3 a3] [h4]
         messages = [
             HumanMessage(content="Olá", id="h1"),
             AIMessage(content="Resp 1", id="a1"),
@@ -71,56 +72,103 @@ class TestTrimMiddleware:
 
         result = mw.before_model({"messages": messages}, None)
 
-        # Middleware deve retornar RemoveMessages
+        # Deve remover turnos 1 e 2 (h1, a1, h2, a2 = 4 mensagens)
         assert result is not None
-        assert len(result["messages"]) == 3  # remove 3 das 7
+        assert len(result["messages"]) == 4
 
         # Aplica pelo reducer real — igual ao que o LangGraph faz
         final = add_messages(messages, result["messages"])
 
-        assert len(final) == 4
-        assert final[0].content == "Resp 2"
-        assert final[1].content == "Msg 3"
-        assert final[2].content == "Resp 3"
-        assert final[3].content == "Msg 4"
+        assert len(final) == 3
+        assert final[0].content == "Msg 3"
+        assert final[1].content == "Resp 3"
+        assert final[2].content == "Msg 4"
 
-    def test_trim_adjusts_odd_to_even(self):
-        """keep_messages ímpar é ajustado para par (pares user/assistant)."""
+    def test_trim_with_tool_calls(self):
+        """Turno com tool_calls (4+ msgs) conta como 1 turno."""
         from langgraph.graph import add_messages
 
         from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
 
-        mw = create_trim_middleware(keep_messages=5)
+        # keep_turns=2 → mantém os últimos 2 turnos
+        mw = create_trim_middleware(keep_turns=2)
 
+        # Turno 1: simples (h1, a1)
+        # Turno 2: com tool_calls (h2, a2_tool_call, tool_result, a2_final)
+        # Turno 3: simples (h3, a3)
         messages = [
-            HumanMessage(content="Msg 1", id="h1"),
+            HumanMessage(content="Olá", id="h1"),
             AIMessage(content="Resp 1", id="a1"),
-            HumanMessage(content="Msg 2", id="h2"),
-            AIMessage(content="Resp 2", id="a2"),
-            HumanMessage(content="Msg 3", id="h3"),
-            AIMessage(content="Resp 3", id="a3"),
-            HumanMessage(content="Msg 4", id="h4"),
+            HumanMessage(content="Consulta estoque", id="h2"),
+            AIMessage(
+                content="",
+                id="a2_call",
+                additional_kwargs={
+                    "tool_calls": [
+                        {
+                            "id": "tc1",
+                            "function": {
+                                "name": "check",
+                                "arguments": "{}",
+                            },
+                        }
+                    ],
+                },
+            ),
+            ToolMessage(content="42 unidades", id="t1", tool_call_id="tc1"),
+            AIMessage(content="Temos 42 unidades!", id="a2_final"),
+            HumanMessage(content="Obrigado", id="h3"),
+            AIMessage(content="De nada!", id="a3"),
         ]
 
         result = mw.before_model({"messages": messages}, None)
 
+        # Deve remover turno 1 (h1, a1 = 2 mensagens)
         assert result is not None
+        assert len(result["messages"]) == 2
+
+        # Aplica pelo reducer real
         final = add_messages(messages, result["messages"])
 
-        # 5 ajustado para 4 → mantém últimas 4
-        assert len(final) == 4
-        assert final[0].content == "Resp 2"
-        assert final[3].content == "Msg 4"
+        # Restam turnos 2 e 3 (6 mensagens)
+        assert len(final) == 6
+        assert final[0].content == "Consulta estoque"  # h2
+        assert final[1].id == "a2_call"
+        assert final[2].content == "42 unidades"  # tool result
+        assert final[3].content == "Temos 42 unidades!"  # a2_final
+        assert final[4].content == "Obrigado"  # h3
+        assert final[5].content == "De nada!"  # a3
 
-    def test_trim_no_op_when_few_messages(self):
-        """Não faz nada quando há poucas mensagens."""
+    def test_trim_no_op_when_few_turns(self):
+        """Não faz nada quando há turnos suficientes (dentro do limite)."""
         from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
 
-        mw = create_trim_middleware(keep_messages=4)
+        mw = create_trim_middleware(keep_turns=3)
 
+        # Apenas 2 turnos — abaixo do limite de 3
         messages = [
             HumanMessage(content="Olá", id="h1"),
             AIMessage(content="Resp 1", id="a1"),
+            HumanMessage(content="Tudo bem?", id="h2"),
+            AIMessage(content="Tudo sim!", id="a2"),
+        ]
+
+        result = mw.before_model({"messages": messages}, None)
+
+        assert result is None
+
+    def test_trim_exact_boundary(self):
+        """Não faz nada quando o número de turnos é exatamente o limite."""
+        from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
+
+        mw = create_trim_middleware(keep_turns=2)
+
+        # Exatamente 2 turnos = limite
+        messages = [
+            HumanMessage(content="Olá", id="h1"),
+            AIMessage(content="Resp 1", id="a1"),
+            HumanMessage(content="Msg 2", id="h2"),
+            AIMessage(content="Resp 2", id="a2"),
         ]
 
         result = mw.before_model({"messages": messages}, None)
@@ -129,7 +177,7 @@ class TestTrimMiddleware:
 
     def test_trim_with_agent_integration(self, model):
         """Teste de integração: agente com trim responde corretamente."""
-        middleware = get_context_middleware(strategy="trim", trim_keep_messages=4)
+        middleware = get_context_middleware(strategy="trim", trim_keep_turns=2)
 
         agent = create_agent(
             model=model,
@@ -247,7 +295,7 @@ class TestGetContextMiddleware:
         """Verifica que parâmetros override funcionam."""
         middleware = get_context_middleware(
             strategy="trim",
-            trim_keep_messages=5,
+            trim_keep_turns=3,
         )
 
         assert len(middleware) == 1

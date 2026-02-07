@@ -76,8 +76,9 @@ O `.env` controla a estratégia de gerenciamento de contexto:
 # No .env
 CONTEXT_STRATEGY=trim        # trim | summarize | none
 
-# Para trim: mantém as N mensagens mais recentes
-TRIM_KEEP_MESSAGES=10
+# Para trim: mantém os N turnos mais recentes
+# Um turno = 1 HumanMessage + todas as respostas (AI, tools, etc)
+TRIM_KEEP_TURNS=5
 
 # Para summarize: sumariza quando excede o limite de tokens
 SUMMARIZE_TRIGGER_TOKENS=4000

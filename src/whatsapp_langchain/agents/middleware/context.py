@@ -4,7 +4,7 @@ Este módulo fornece uma interface unificada para escolher entre diferentes
 estratégias de gerenciamento de contexto via variável de ambiente.
 
 Estratégias disponíveis:
-    - trim: Remove mensagens antigas (custo zero, perde contexto)
+    - trim: Remove turnos antigos (custo zero, perde contexto)
     - summarize: Sumariza mensagens antigas (custo extra, preserva contexto)
     - none: Sem gerenciamento (para testes ou conversas curtas)
 
@@ -12,7 +12,7 @@ Configuração via .env:
     CONTEXT_STRATEGY=trim              # trim | summarize | none
 
     # Para TRIM:
-    TRIM_KEEP_MESSAGES=10              # Mensagens recentes a manter
+    TRIM_KEEP_TURNS=5                  # Turnos recentes a manter
 
     # Para SUMMARIZE:
     SUMMARIZE_TRIGGER_TOKENS=4000      # Tokens antes de sumarizar
@@ -41,7 +41,7 @@ from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
 
 def get_context_middleware(
     strategy: str | None = None,
-    trim_keep_messages: int | None = None,
+    trim_keep_turns: int | None = None,
     summarize_trigger_tokens: int | None = None,
     summarize_keep_messages: int | None = None,
     summarize_model: str | None = None,
@@ -54,8 +54,8 @@ def get_context_middleware(
     Args:
         strategy: Estratégia de contexto (trim/summarize/none).
                   Default: env CONTEXT_STRATEGY ou "summarize".
-        trim_keep_messages: Mensagens recentes a manter no trim.
-                            Default: env TRIM_KEEP_MESSAGES ou 10.
+        trim_keep_turns: Turnos recentes a manter no trim.
+                         Default: env TRIM_KEEP_TURNS ou 5.
         summarize_trigger_tokens: Tokens antes de acionar sumarização.
                                   Default: env SUMMARIZE_TRIGGER_TOKENS ou 4000.
         summarize_keep_messages: Mensagens a manter após sumarização.
@@ -74,14 +74,14 @@ def get_context_middleware(
         middlewares = get_context_middleware()
 
         # Override para testes
-        middlewares = get_context_middleware(strategy="trim", trim_keep_messages=5)
+        middlewares = get_context_middleware(strategy="trim", trim_keep_turns=3)
     """
     # Lê configuração com fallback para env vars
     resolved_strategy = strategy or os.getenv("CONTEXT_STRATEGY", "summarize")
 
     if resolved_strategy == "trim":
-        resolved_keep = trim_keep_messages or int(os.getenv("TRIM_KEEP_MESSAGES", "10"))
-        return [create_trim_middleware(keep_messages=resolved_keep)]
+        resolved_keep = trim_keep_turns or int(os.getenv("TRIM_KEEP_TURNS", "5"))
+        return [create_trim_middleware(keep_turns=resolved_keep)]
 
     elif resolved_strategy == "summarize":
         resolved_tokens = summarize_trigger_tokens or int(
