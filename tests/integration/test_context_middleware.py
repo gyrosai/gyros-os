@@ -213,11 +213,137 @@ class TestSummarizeMiddleware:
         assert len(middleware) == 1
         assert middleware[0] is not None
 
-    def test_summarize_with_agent_integration(self, model):
-        """Teste de integração: agente com summarize responde corretamente."""
+    def test_summarize_no_op_below_threshold(self):
+        """Não sumariza quando tokens estão abaixo do threshold."""
+        from whatsapp_langchain.agents.middleware.summarize import (
+            create_summarize_middleware,
+        )
+
+        # trigger_tokens alto → poucas mensagens não acionam
+        mw = create_summarize_middleware(
+            trigger_tokens=10000,
+            keep_messages=2,
+        )
+
+        messages = [
+            HumanMessage(content="Olá", id="h1"),
+            AIMessage(content="Oi!", id="a1"),
+            HumanMessage(content="Tudo bem?", id="h2"),
+            AIMessage(content="Tudo sim!", id="a2"),
+        ]
+
+        result = mw.before_model({"messages": messages}, None)
+
+        # Nenhuma sumarização necessária
+        assert result is None
+
+    def test_summarize_triggers_on_threshold(self, model):
+        """Sumariza quando tokens excedem o threshold."""
+        from whatsapp_langchain.agents.middleware.summarize import (
+            create_summarize_middleware,
+        )
+
+        # trigger_tokens baixo → sumariza com poucas mensagens
+        # Contagem aproximada: ~4 chars/token
+        mw = create_summarize_middleware(
+            model=model,
+            trigger_tokens=50,
+            keep_messages=2,
+        )
+
+        # Mensagens com texto suficiente para ultrapassar 50 tokens
+        messages = [
+            HumanMessage(
+                content="Meu nome é Carlos, moro em São Paulo.",
+                id="h1",
+            ),
+            AIMessage(
+                content="Prazer Carlos! São Paulo é incrível.",
+                id="a1",
+            ),
+            HumanMessage(
+                content="Trabalho com LangGraph e WhatsApp.",
+                id="h2",
+            ),
+            AIMessage(
+                content="LangGraph é ótimo para agentes.",
+                id="a2",
+            ),
+            HumanMessage(
+                content="Preciso de ajuda com middleware.",
+                id="h3",
+            ),
+            AIMessage(
+                content="Posso ajudar com trim ou summarize.",
+                id="a3",
+            ),
+        ]
+
+        result = mw.before_model({"messages": messages}, None)
+
+        # Sumarização deve ter sido acionada
+        assert result is not None
+        assert "messages" in result
+
+        # O SummarizationMiddleware adiciona HumanMessage
+        # com lc_source="summarization" contendo o resumo
+        summary_msgs = [
+            m
+            for m in result["messages"]
+            if hasattr(m, "additional_kwargs")
+            and m.additional_kwargs.get("lc_source") == "summarization"
+        ]
+        assert len(summary_msgs) == 1
+        assert len(summary_msgs[0].content) > 0
+
+    def test_summarize_multi_turn_bounded_history(self, model):
+        """Múltiplos turnos com summarize mantém histórico limitado."""
+        from langgraph.checkpoint.memory import MemorySaver
+
+        checkpointer = MemorySaver()
         middleware = get_context_middleware(
             strategy="summarize",
-            summarize_trigger_tokens=500,  # Valor baixo para teste
+            summarize_trigger_tokens=100,
+            summarize_keep_messages=4,
+        )
+
+        agent = create_agent(
+            model=model,
+            tools=[],
+            system_prompt="Responda em uma frase curta.",
+            middleware=middleware,
+            checkpointer=checkpointer,
+        )
+
+        thread = "test-summarize-bounded"
+        config = {"configurable": {"thread_id": thread}}
+
+        # Envia 5 mensagens no mesmo thread para acumular tokens
+        prompts = [
+            "Meu nome é Carlos, moro em São Paulo.",
+            "Trabalho como desenvolvedor Python há 5 anos.",
+            "Estou estudando LangGraph para chatbots.",
+            "Quero integrar com WhatsApp usando Twilio.",
+            "Preciso configurar middleware de contexto.",
+        ]
+
+        result = None
+        for msg in prompts:
+            result = agent.invoke(
+                {"messages": [HumanMessage(content=msg)]},
+                config=config,
+            )
+
+        # Sem summarize: 10 mensagens (5 human + 5 AI)
+        # Com summarize (trigger=100, keep=4): deve ser menor
+        final_messages = result["messages"]
+        assert len(final_messages) < 10
+
+    def test_summarize_with_agent_integration(self, model):
+        """Teste de integração: agente com summarize responde."""
+        middleware = get_context_middleware(
+            strategy="summarize",
+            summarize_trigger_tokens=500,
             summarize_keep_messages=2,
         )
 
@@ -228,10 +354,9 @@ class TestSummarizeMiddleware:
             middleware=middleware,
         )
 
-        # Primeira mensagem
         result = agent.invoke(
             {"messages": [HumanMessage(content="Olá!")]},
-            config={"configurable": {"thread_id": "test-summarize-1"}},
+            config={"configurable": {"thread_id": "test-sum-1"}},
         )
 
         assert result is not None
