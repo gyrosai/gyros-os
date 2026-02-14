@@ -71,6 +71,16 @@ make up
 # sobe: db + api + worker
 ```
 
+### Acesso ao banco (DBeaver)
+
+Use estes dados de conexão PostgreSQL:
+
+- Host: `localhost`
+- Port: `5432`
+- Database: `whatsapp_langchain`
+- User: `postgres`
+- Password: `postgres`
+
 Valide saúde da API:
 
 ```bash
