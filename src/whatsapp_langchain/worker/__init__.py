@@ -1,1 +1,1 @@
-"""Worker de processamento (Fase 3)."""
+"""Worker de processamento de mensagens da fila."""

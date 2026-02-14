@@ -45,7 +45,10 @@ class TestTrimMiddleware:
 
     def test_trim_creates_middleware(self):
         """Verifica que o trim cria o middleware corretamente."""
-        middleware = get_context_middleware(strategy="trim", trim_keep_turns=2)
+        # memory_enabled=False para testar apenas o trim
+        middleware = get_context_middleware(
+            strategy="trim", trim_keep_turns=2, memory_enabled=False
+        )
 
         assert len(middleware) == 1
         assert middleware[0] is not None
@@ -177,7 +180,9 @@ class TestTrimMiddleware:
 
     def test_trim_with_agent_integration(self, model):
         """Teste de integração: agente com trim responde corretamente."""
-        middleware = get_context_middleware(strategy="trim", trim_keep_turns=2)
+        middleware = get_context_middleware(
+            strategy="trim", trim_keep_turns=2, memory_enabled=False
+        )
 
         agent = create_agent(
             model=model,
@@ -208,6 +213,7 @@ class TestSummarizeMiddleware:
             strategy="summarize",
             summarize_trigger_tokens=100,
             summarize_keep_messages=2,
+            memory_enabled=False,
         )
 
         assert len(middleware) == 1
@@ -305,6 +311,7 @@ class TestSummarizeMiddleware:
             strategy="summarize",
             summarize_trigger_tokens=100,
             summarize_keep_messages=4,
+            memory_enabled=False,
         )
 
         agent = create_agent(
@@ -345,6 +352,7 @@ class TestSummarizeMiddleware:
             strategy="summarize",
             summarize_trigger_tokens=500,
             summarize_keep_messages=2,
+            memory_enabled=False,
         )
 
         agent = create_agent(
@@ -371,14 +379,14 @@ class TestNoneMiddleware:
 
     def test_none_returns_empty_list(self):
         """Verifica que strategy=none retorna lista vazia."""
-        middleware = get_context_middleware(strategy="none")
+        middleware = get_context_middleware(strategy="none", memory_enabled=False)
 
         assert middleware == []
         assert len(middleware) == 0
 
     def test_none_with_agent_integration(self, model):
         """Teste de integração: agente sem middleware responde corretamente."""
-        middleware = get_context_middleware(strategy="none")
+        middleware = get_context_middleware(strategy="none", memory_enabled=False)
 
         agent = create_agent(
             model=model,
@@ -408,7 +416,7 @@ class TestGetContextMiddleware:
         original = os.environ.pop("CONTEXT_STRATEGY", None)
 
         try:
-            middleware = get_context_middleware()
+            middleware = get_context_middleware(memory_enabled=False)
             # Deve retornar um middleware (summarize)
             assert len(middleware) == 1
         finally:
@@ -421,12 +429,35 @@ class TestGetContextMiddleware:
         middleware = get_context_middleware(
             strategy="trim",
             trim_keep_turns=3,
+            memory_enabled=False,
         )
 
         assert len(middleware) == 1
 
     def test_invalid_strategy_returns_empty(self):
         """Verifica que estratégia inválida retorna lista vazia."""
-        middleware = get_context_middleware(strategy="invalid_strategy")
+        middleware = get_context_middleware(
+            strategy="invalid_strategy", memory_enabled=False
+        )
 
         assert middleware == []
+
+    def test_memory_enabled_adds_middleware(self):
+        """Verifica que memory_enabled=True adiciona middleware de recall."""
+        middleware = get_context_middleware(strategy="none", memory_enabled=True)
+
+        # Apenas o middleware de memória
+        assert len(middleware) == 1
+
+    def test_memory_disabled_no_extra_middleware(self):
+        """Verifica que memory_enabled=False não adiciona recall."""
+        middleware = get_context_middleware(strategy="none", memory_enabled=False)
+
+        assert len(middleware) == 0
+
+    def test_memory_plus_trim(self):
+        """Verifica que memória + trim produz 2 middlewares."""
+        middleware = get_context_middleware(strategy="trim", memory_enabled=True)
+
+        # memory recall + trim = 2 middlewares
+        assert len(middleware) == 2

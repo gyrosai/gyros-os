@@ -1,7 +1,8 @@
 """Agente rhawk_assistant - assistente da comunidade Top Hawks.
 
 Agente simples usando create_agent do LangChain 1.0.
-Usa middleware de contexto configurável (trim ou summarize).
+Usa middleware de contexto configurável (trim ou summarize)
+e memória semântica cross-thread via LangGraph Store.
 
 Este arquivo contém a factory `build_graph()`. Para langgraph dev,
 veja graph.py que exporta a variável `graph`.
@@ -14,28 +15,24 @@ Configuração via .env:
     SUMMARIZE_TRIGGER_TOKENS=4000      # Tokens antes de sumarizar
     SUMMARIZE_KEEP_MESSAGES=10         # Mensagens após sumarização
     SUMMARIZE_MODEL=anthropic/...      # Modelo para sumarização
+    MEMORY_ENABLED=true                # Habilita memória semântica
 """
 
-import os
-
-from dotenv import load_dotenv
 from langchain.agents import create_agent
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from pydantic import SecretStr
+from langgraph.store.base import BaseStore
 
 from whatsapp_langchain.agents.middleware import get_context_middleware
+from whatsapp_langchain.agents.tools import save_memory
+from whatsapp_langchain.shared.llm import create_chat_model
 
 from .prompts import SYSTEM_PROMPT
 
-load_dotenv()
 
-# Configurações via env vars
-DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b")
-OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-
-
-def build_graph(checkpointer: BaseCheckpointSaver | None = None):
+def build_graph(
+    checkpointer: BaseCheckpointSaver | None = None,
+    store: BaseStore | None = None,
+):
     """Constrói o agente rhawk_assistant.
 
     O agente usa middleware de contexto configurável via CONTEXT_STRATEGY:
@@ -43,32 +40,35 @@ def build_graph(checkpointer: BaseCheckpointSaver | None = None):
     - summarize: Sumariza mensagens antigas (custo extra, preserva contexto)
     - none: Sem gerenciamento de contexto
 
+    Se store for fornecido, habilita memória semântica:
+    - Recall automático via middleware (busca memórias antes de cada chamada)
+    - Save explícito via tool save_memory (agente decide quando salvar)
+
     Args:
         checkpointer: Checkpointer para persistência de estado.
                       None em dev (in-memory), PostgresSaver em prod.
+        store: Store para memória semântica cross-thread.
+               None desabilita memória, InMemoryStore em dev,
+               AsyncPostgresStore em prod.
 
     Returns:
         CompiledStateGraph: Agente compilado pronto para uso.
     """
-    # SecretStr evita que a API key apareça em logs ou stack traces
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    secret_key = SecretStr(api_key) if api_key else None
-
-    # Modelo principal para o agente
-    model = ChatOpenAI(
-        model=DEFAULT_MODEL,
-        api_key=secret_key,
-        base_url=OPENROUTER_BASE_URL,
-    )
+    # Modelo principal com rate limiter centralizado (shared/llm.py)
+    model = create_chat_model()
 
     # Middleware de contexto baseado em CONTEXT_STRATEGY
-    # Lê configuração automaticamente do .env
+    # Inclui recall de memórias se MEMORY_ENABLED=true
     middleware = get_context_middleware()
+
+    # Tools de memória — só disponibiliza save_memory se store existe
+    tools = [save_memory] if store else []
 
     return create_agent(
         model=model,
-        tools=[],
+        tools=tools,
         system_prompt=SYSTEM_PROMPT,
         middleware=middleware,
         checkpointer=checkpointer,
+        store=store,
     )

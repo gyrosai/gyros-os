@@ -1,4 +1,4 @@
-.PHONY: help dev setup db api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v clean
+.PHONY: help dev setup db migrate api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v clean
 
 # Cores para output
 CYAN := \033[36m
@@ -17,8 +17,11 @@ setup: ## Cria .venv e instala dependências
 dev: ## Inicia LangGraph Studio (desenvolvimento de agentes)
 	uv run langgraph dev
 
-db: ## Inicia apenas o PostgreSQL
-	docker compose up -d postgres
+db: ## Inicia apenas o PostgreSQL (com pgvector)
+	docker compose up -d db
+
+migrate: ## Aplica migrações pendentes no banco
+	uv run python db/migrate.py
 
 api: ## Roda a API localmente (fora do Docker)
 	uv run uvicorn whatsapp_langchain.server.main:app --reload --port 8000

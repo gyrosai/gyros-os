@@ -1,1 +1,1 @@
-"""Servidor HTTP (Fase 2)."""
+"""Servidor HTTP FastAPI para webhooks e administração."""

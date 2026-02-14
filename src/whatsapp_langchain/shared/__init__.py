@@ -1,1 +1,1 @@
-"""Código compartilhado (Fase 2)."""
+"""Código compartilhado entre API, Worker e agentes."""

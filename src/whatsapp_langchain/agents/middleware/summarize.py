@@ -27,11 +27,11 @@ Exemplo:
     agent = create_agent(model=model, middleware=[summarize], ...)
 """
 
-import os
-
 from langchain.agents.middleware import SummarizationMiddleware
 from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+
+from whatsapp_langchain.shared.config import settings
+from whatsapp_langchain.shared.llm import create_chat_model
 
 # Prompt padrão para sumarização em português
 # O placeholder {messages} é OBRIGATÓRIO - o LangChain insere o histórico aqui
@@ -91,18 +91,10 @@ def create_summarize_middleware(
     """
     resolved_prompt = prompt or DEFAULT_PROMPT
 
-    # Se não passou modelo, cria um usando variáveis de ambiente
+    # Se não passou modelo, cria usando factory centralizada (shared/llm.py)
     if model is None:
-        # SecretStr evita que a API key apareça em logs ou stack traces
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        secret_key = SecretStr(api_key) if api_key else None
-        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        model_name = os.getenv("SUMMARIZE_MODEL", "google/gemini-3-flash-preview")
-
-        model = ChatOpenAI(
-            model=model_name,
-            api_key=secret_key,
-            base_url=base_url,
+        model = create_chat_model(
+            model=settings.summarize_model,
             temperature=0.0,  # Determinístico para resumos consistentes
         )
 
