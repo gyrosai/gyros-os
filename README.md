@@ -1,156 +1,156 @@
 # WhatsApp LangChain
 
-Template educacional e production-ready para criar agentes de IA no WhatsApp usando LangGraph.
+Template educacional e production-ready para construir sistemas de agentes de IA no WhatsApp com LangGraph.
 
 ## O que é?
 
-Um sistema completo que conecta agentes de IA ao WhatsApp. Você define o comportamento do agente usando Langchain/LangGraph, e a infraestrutura cuida do resto: receber mensagens, processar com IA, e responder automaticamente.
+Um sistema completo e production-ready que conecta agentes de IA ao WhatsApp. Você define o comportamento do agente com LangChain/LangGraph, e a infraestrutura do projeto cuida do resto: recebimento de mensagens, processamento assíncrono, memória e operação.
+
+O objetivo deste repositório é ensinar arquitetura de sistemas em volta do agente:
+- entrada confiável de mensagens
+- processamento assíncrono
+- persistência de contexto e memória
+- observabilidade, retries e limites
+
+## Fase Atual
+
+**Fase 2 em implementação ativa (com partes da Fase 3 já antecipadas).**
+
+Já implementado no código:
+- API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
+- fila em PostgreSQL com debounce e retry
+- worker assíncrono para processamento LangGraph
+- checkpointer PostgreSQL (`thread_id`) para contexto por conversa
+- memória semântica com `AsyncPostgresStore` + embeddings (`user_id`)
+- middleware de contexto (`trim`, `summarize`, `none`)
+- processamento de mídia (imagem e áudio) via OpenRouter multimodal
+- rate limit por telefone (in-memory)
+- rotas administrativas (`/api/agents`, `/api/chats`, `/api/metrics`)
+- endpoint síncrono educacional (`/webhook/sync`)
+
+Ainda pendente:
+- envio de resposta para WhatsApp via API Twilio (worker hoje salva resposta no banco)
+- validação completa de assinatura Twilio
+- frontend/admin panel integrado neste repositório
 
 ## Arquitetura
 
 ![Arquitetura](docs/architecture.png)
 
-```
-Usuário (WhatsApp)
-       │
-       ▼
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Twilio     │────▶│     API      │────▶│ PostgreSQL  │
-│  (Provider)  │     │  (FastAPI)   │     │  (Fila +    │
-└─────────────┘     └──────────────┘     │ Checkpointer)│
-                                          └──────┬───────┘
-                                                 │
-┌─────────────┐     ┌──────────────┐             │
-│   Twilio     │◀───│   Worker     │◀────────────┘
-│  (Resposta)  │    │  (LangGraph) │
-└─────────────┘     └──────────────┘
+Fluxo principal:
 
-┌──────────────┐
-│  Admin Panel │───▶ API (métricas, conversas, fila)
-│  (Next.js)   │
-└──────────────┘
+```text
+WhatsApp/Twilio -> API (/webhook/twilio) -> PostgreSQL (message_queue)
+                                              -> Worker -> LangGraph Agent
+                                              -> PostgreSQL (response, conversation)
 ```
 
-**Por que 4 serviços?**
-
-- **API** recebe a mensagem e enfileira. Responde em milissegundos.
-- **Worker** processa com IA. Pode demorar segundos — sem bloquear a API.
-- **PostgreSQL** armazena a fila de mensagens e o histórico de conversas.
-- **Frontend** monitora tudo via Admin Panel.
-
-Isso garante que nenhuma mensagem é perdida, mesmo sob alta carga.
+Separar API e Worker evita bloqueio na borda HTTP e melhora confiabilidade sob carga.
 
 ## Quick Start
 
-### 1. Instale o uv (gerenciador de pacotes)
-
-```bash
-# Windows (PowerShell)
-irm https://astral.sh/uv/install.ps1 | iex
-
-# Mac/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Ou via pip (qualquer OS)
-pip install uv
-```
-
-### 2. Configure o projeto
+### 1. Setup
 
 ```bash
 git clone <repo-url>
 cd whatsapp-langchain
-
-# Cria ambiente virtual e instala dependências
 make setup
-# Ou manualmente: uv venv && uv pip install -e ".[dev]"
-
-# Configure as variáveis de ambiente
-cp .env.example .env   # Edite com sua OPENROUTER_API_KEY
+cp .env.example .env
 ```
 
-### 3. Desenvolva o agente
+Edite o `.env` e configure pelo menos:
 
 ```bash
-make dev   # Abre o LangGraph Studio no navegador
-# Ou manualmente: uv run langgraph dev
+OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
-O LangGraph Studio permite conversar com o agente `rhawk_assistant` e ver o grafo executando em tempo real. O agente é definido em `src/whatsapp_langchain/agents/catalog/rhawk_assistant/`.
+### 2. Suba o stack da Fase 2
+
+```bash
+make up
+# sobe: db + api + worker
+```
+
+Valide saúde da API:
+
+```bash
+curl http://localhost:8000/health
+```
+
+### 3. Teste rápido (endpoint síncrono)
+
+```bash
+curl -X POST "http://localhost:8000/webhook/sync?agent=rhawk_assistant" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+5511999999999","message":"Olá!"}'
+```
+
+### 4. Teste assíncrono (simulando Twilio)
+
+```bash
+curl -X POST "http://localhost:8000/webhook/twilio?agent=rhawk_assistant" \
+  -d "MessageSid=SM123" \
+  -d "From=whatsapp:+5511999999999" \
+  -d "To=whatsapp:+14155238886" \
+  -d "Body=Quero aprender sistemas de agentes" \
+  -d "NumMedia=0"
+```
+
+Acompanhe métricas:
+
+```bash
+curl http://localhost:8000/api/metrics
+curl http://localhost:8000/api/chats
+```
 
 ## Estrutura do Projeto
 
-```
+```text
 whatsapp-langchain/
 ├── src/whatsapp_langchain/
-│   ├── agents/                 # Agentes de IA
-│   │   ├── catalog/            # Um diretório por agente
-│   │   │   └── rhawk_assistant/ # Agente padrão (agent.py, graph.py, prompts.py)
-│   │   └── middleware/         # Trim, Summarize (gerenciamento de contexto)
-│   ├── server/                 # API FastAPI (em breve)
-│   ├── worker/                 # Processamento de mensagens (em breve)
-│   └── shared/                 # Config, DB, Models (em breve)
-├── tests/                      # Testes automatizados
-├── langgraph.json              # Registry de agentes
-├── pyproject.toml              # Dependências e configuração
-├── Makefile                    # Comandos úteis
-└── docs/                       # Documentação
+│   ├── agents/        # Catálogo de agentes, middleware e tools
+│   ├── server/        # API FastAPI (webhooks + admin APIs)
+│   ├── worker/        # Loop consumidor da fila e execução dos agentes
+│   └── shared/        # Config, DB, fila, modelos, logging, factory LLM
+├── db/migrations/     # Schema SQL (fila + conversas + vector)
+├── docs/              # Documentação técnica e onboarding
+└── tests/             # Unit e integração
 ```
 
-## Documentação
+## Aprendizado (foco em sistemas)
 
-| Documento | Descrição |
-|-----------|-----------|
-| [Primeiros Passos](docs/GETTING_STARTED.md) | Setup, LangGraph Studio, testes |
-| [Arquitetura](docs/ARCHITECTURE.md) | Como o sistema funciona |
-| [Criando Agentes](docs/ADDING_AGENTS.md) | Como criar novos agentes |
+Este projeto é para aprender decisões de engenharia reais:
+- fronteiras entre serviços (`server`, `worker`, `shared`)
+- contratos de dados (`MessageQueue`, `Conversation`, webhook payload)
+- estados e transições (`queued -> processing -> done/failed`)
+- consistência operacional (retry com backoff, debounce, lease)
+- limites e custo (rate limit HTTP e rate limit de LLM)
 
-## Pré-requisitos
+Para detalhes técnicos:
+- [Arquitetura](docs/ARCHITECTURE.md)
+- [Primeiros Passos](docs/GETTING_STARTED.md)
+- [Criando Agentes](docs/ADDING_AGENTS.md)
+- [Deploy](docs/DEPLOY.md)
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (gerenciador de pacotes — funciona no Windows, Mac e Linux)
-- Conta [OpenRouter](https://openrouter.ai/) (LLM)
-- Conta [LangSmith](https://smith.langchain.com/) (necessário para o LangGraph Studio)
-
-> **Windows:** Recomendamos instalar o [WSL](https://learn.microsoft.com/pt-br/windows/wsl/install) (Windows Subsystem for Linux) para melhor compatibilidade com as ferramentas de desenvolvimento. Não é obrigatório, mas simplifica bastante o setup.
-
-## Comandos
-
-### Comandos diretos (qualquer OS)
+## Comandos úteis
 
 ```bash
-uv venv                      # Cria ambiente virtual
-uv pip install -e ".[dev]"   # Instala dependências
-uv run langgraph dev         # LangGraph Studio
-uv run ruff check .          # Lint
-uv run ruff format .         # Formata código
-uv run pyright src/          # Type check
-uv run pytest                # Testes
-```
-
-### Atalhos Makefile (Mac/Linux/WSL)
-
-```bash
-make setup          # Cria .venv e instala dependências
-make dev            # LangGraph Studio (desenvolvimento de agentes)
-make lint           # Encontra problemas (ruff check)
-make format         # Formata código (ruff format)
-make fix            # Corrige problemas automaticamente
-make typecheck      # Verifica tipos estáticos (pyright)
-make check          # Verifica tudo (lint + format + types)
-make test           # Roda todos os testes
-make clean          # Remove __pycache__
+make help
+make api
+make worker
+make migrate
+make test
+make check
+make logs
 ```
 
 ## Roadmap
 
-O projeto está sendo construído em fases:
-
-- **Fase 1 (atual)** — Pacote de agentes: `create_agent()`, middleware de contexto (trim/summarize), LangGraph Studio
-- **Fase 2** — API (FastAPI) + Worker + PostgreSQL como fila
-- **Fase 3** — Integração Twilio (WhatsApp), mídia (imagem/áudio), rate limiting
-- **Fase 4** — Admin Panel (Next.js) + Deploy no Railway
+- **Fase 1** concluída: base de agentes + middleware de contexto
+- **Fase 2** atual: API + Worker + PostgreSQL + observabilidade operacional
+- **Fase 3** em progresso: robustez Twilio/mídia e hardening operacional
+- **Fase 4** planejada: painel completo e playbook de deploy comunitário
 
 ## Licença
 
-[TOPHAWKS Community License](LICENSE) — Uso restrito a membros da comunidade [TOPHAWKS](https://www.rhawk.pro/comunidade).
+[TOPHAWKS Community License](LICENSE) - uso restrito a membros da comunidade [TOPHAWKS](https://www.rhawk.pro/comunidade).
