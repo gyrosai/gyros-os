@@ -26,8 +26,34 @@ logger = structlog.get_logger()
 # Singleton do pool de conexões
 pool: AsyncConnectionPool | None = None
 
+def _resolve_migrations_dir() -> Path:
+    """Resolve o diretório de migrações para dev local e Docker.
+
+    Em desenvolvimento com código-fonte, `__file__` aponta para:
+    `.../src/whatsapp_langchain/shared/db.py` e o caminho relativo funciona.
+
+    Em Docker com pacote instalado no site-packages, as migrações ficam em
+    `/app/db/migrations`, então usamos cwd como fallback.
+    """
+    candidates = [
+        # Dev local (código em src/)
+        Path(__file__).resolve().parents[3] / "db" / "migrations",
+        # Docker/execução a partir do WORKDIR do projeto
+        Path.cwd() / "db" / "migrations",
+        # Fallback explícito para imagem padrão deste projeto
+        Path("/app/db/migrations"),
+    ]
+
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+
+    # Mantém comportamento previsível mesmo se diretório estiver ausente
+    return candidates[0]
+
+
 # Diretório de migrações
-MIGRATIONS_DIR = Path(__file__).parents[3] / "db" / "migrations"
+MIGRATIONS_DIR = _resolve_migrations_dir()
 
 
 async def get_pool() -> AsyncConnectionPool:
