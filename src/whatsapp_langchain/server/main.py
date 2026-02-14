@@ -21,7 +21,12 @@ from whatsapp_langchain.server.routes.webhook_sync import (
     router as webhook_sync_router,
 )
 from whatsapp_langchain.shared.config import settings
-from whatsapp_langchain.shared.db import close_pool, get_pool, run_migrations
+from whatsapp_langchain.shared.db import (
+    bootstrap_langgraph_schema,
+    close_pool,
+    get_pool,
+    run_migrations,
+)
 from whatsapp_langchain.shared.observability import setup_logging
 
 logger = structlog.get_logger()
@@ -43,6 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     pool = await get_pool()
     await run_migrations(pool)
+    await bootstrap_langgraph_schema()
     logger.info("server_ready")
 
     yield

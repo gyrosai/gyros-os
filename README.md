@@ -20,6 +20,7 @@ Já implementado no código:
 - API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
 - fila em PostgreSQL com debounce e retry
 - worker assíncrono para processamento LangGraph
+- bootstrap de schema LangGraph no startup (sem criação lazy no primeiro request)
 - checkpointer PostgreSQL (`thread_id`) para contexto por conversa
 - memória semântica com `AsyncPostgresStore` + embeddings (`user_id`)
 - middleware de contexto (`trim`, `summarize`, `none`)
@@ -152,6 +153,7 @@ make migrate
 make test
 make check
 make logs
+make reset
 ```
 
 ## Roadmap

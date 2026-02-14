@@ -12,7 +12,12 @@ import asyncio
 import structlog
 
 from whatsapp_langchain.shared.config import settings
-from whatsapp_langchain.shared.db import close_pool, get_pool, run_migrations
+from whatsapp_langchain.shared.db import (
+    bootstrap_langgraph_schema,
+    close_pool,
+    get_pool,
+    run_migrations,
+)
 from whatsapp_langchain.shared.observability import setup_logging
 from whatsapp_langchain.worker.consumer import claim_next_message
 from whatsapp_langchain.worker.processor import process_message
@@ -33,6 +38,7 @@ async def main() -> None:
 
     pool = await get_pool()
     await run_migrations(pool)
+    await bootstrap_langgraph_schema()
     logger.info("worker_ready", poll_interval=settings.poll_interval_seconds)
 
     try:

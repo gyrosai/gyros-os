@@ -97,9 +97,6 @@ async def process_message(
                     settings.database_url,
                 ) as checkpointer,
             ):
-                await store.setup()
-                await checkpointer.setup()
-
                 graph = load_graph(
                     message.agent_id,
                     checkpointer=checkpointer,
@@ -116,8 +113,6 @@ async def process_message(
             async with AsyncPostgresSaver.from_conn_string(
                 settings.database_url,
             ) as checkpointer:
-                await checkpointer.setup()
-
                 graph = load_graph(
                     message.agent_id,
                     checkpointer=checkpointer,

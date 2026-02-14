@@ -1,4 +1,4 @@
-.PHONY: help dev setup db migrate api worker frontend up down logs lint format format-check fix typecheck check ci test test-x test-v clean
+.PHONY: help dev setup db migrate api worker frontend up down reset logs lint format format-check fix typecheck check ci test test-x test-v clean
 
 # Cores para output
 CYAN := \033[36m
@@ -38,6 +38,11 @@ up: ## Inicia todos os serviços (API + Worker + DB)
 
 down: ## Para todos os serviços
 	docker compose down
+
+reset: ## Reseta stack Docker (remove containers/rede/volumes e sobe com build limpo)
+	docker compose down -v --remove-orphans
+	docker compose up -d --build
+	docker compose ps
 
 logs: ## Mostra logs de todos os serviços
 	docker compose logs -f

@@ -16,8 +16,13 @@ Uso:
 from pathlib import Path
 
 import structlog
+from langchain_openai import OpenAIEmbeddings
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.store.postgres.aio import AsyncPostgresStore
+from langgraph.store.postgres.base import PostgresIndexConfig
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
+from pydantic import SecretStr
 
 from whatsapp_langchain.shared.config import settings
 
@@ -25,6 +30,7 @@ logger = structlog.get_logger()
 
 # Singleton do pool de conexões
 pool: AsyncConnectionPool | None = None
+
 
 def _resolve_migrations_dir() -> Path:
     """Resolve o diretório de migrações para dev local e Docker.
@@ -134,6 +140,49 @@ async def run_migrations(db_pool: AsyncConnectionPool) -> None:
             )
             await conn.commit()
             logger.info("migration_applied", migration=sql_file.name)
+
+
+async def bootstrap_langgraph_schema() -> None:
+    """Inicializa tabelas do checkpointer/store do LangGraph no startup.
+
+    Isso evita criação lazy de schema durante o processamento da primeira
+    mensagem e garante que o serviço só entra em estado ready após bootstrap.
+    """
+    logger.info(
+        "langgraph_schema_bootstrap_starting",
+        memory_enabled=settings.memory_enabled,
+    )
+
+    if settings.memory_enabled:
+        api_key = settings.openrouter_api_key
+        secret_key = SecretStr(api_key.get_secret_value()) if api_key else None
+        embeddings = OpenAIEmbeddings(
+            model=settings.embedding_model,
+            base_url=settings.openrouter_base_url,
+            api_key=secret_key,
+        )
+        index_config: PostgresIndexConfig = {
+            "embed": embeddings,
+            "dims": settings.embedding_dims,
+            "fields": ["$"],
+        }
+
+        async with (
+            AsyncPostgresStore.from_conn_string(
+                settings.database_url,
+                index=index_config,
+            ) as store,
+            AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer,
+        ):
+            await store.setup()
+            await checkpointer.setup()
+    else:
+        async with AsyncPostgresSaver.from_conn_string(
+            settings.database_url,
+        ) as checkpointer:
+            await checkpointer.setup()
+
+    logger.info("langgraph_schema_bootstrap_done")
 
 
 async def check_db_health() -> bool:
