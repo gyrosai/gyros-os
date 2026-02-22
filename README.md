@@ -14,7 +14,7 @@ O objetivo deste repositório é ensinar arquitetura de sistemas em volta do age
 
 ## Fase Atual
 
-**Fase 2 em implementação ativa (com partes da Fase 3 já antecipadas).**
+**Fase 2 concluída (pronta para tag e início da Fase 3).**
 
 Já implementado no código:
 - API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
@@ -31,7 +31,7 @@ Já implementado no código:
 - rotas administrativas (`/api/agents`, `/api/chats`, `/api/metrics`)
 - endpoint síncrono educacional (`/webhook/sync`)
 
-Ainda pendente:
+Fora do escopo da Fase 2 (próximas fases):
 - envio de resposta para WhatsApp via API Twilio (worker hoje salva resposta no banco)
 - validação completa de assinatura Twilio
 - frontend/admin panel integrado neste repositório
@@ -146,6 +146,8 @@ Para detalhes técnicos:
 - [Banco de Dados](docs/DATABASE.md)
 - [Deploy](docs/DEPLOY.md)
 
+
+
 ## Comandos úteis
 
 ```bash
@@ -163,9 +165,9 @@ make test-demo
 ## Roadmap
 
 - **Fase 1** concluída: base de agentes + middleware de contexto
-- **Fase 2** atual: API + Worker + PostgreSQL + observabilidade operacional
-- **Fase 3** em progresso: robustez Twilio/mídia e hardening operacional
-- **Fase 4** planejada: painel completo e playbook de deploy comunitário
+- **Fase 2** concluída: API + Worker + PostgreSQL + observabilidade operacional
+- **Fase 3** planejada: integração Twilio (envio/assinatura) + cenários de debounce
+- **Fase 4** planejada: deploy de produção + testes de stress sob carga
 
 ## Licença
 

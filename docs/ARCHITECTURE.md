@@ -4,7 +4,7 @@ Este projeto ensina agentes por uma perspectiva de **sistemas**.
 O agente é só uma parte da solução. O valor real está no fluxo completo:
 entrada confiável, processamento assíncrono, persistência, recuperação de falhas e inspeção operacional.
 
-## Estado Atual (Fase 2)
+## Estado Atual (Fase 2 concluída)
 
 Implementado:
 - API FastAPI com webhook Twilio assíncrono (`POST /webhook/twilio`)
@@ -19,7 +19,7 @@ Implementado:
 - retry com backoff progressivo e status de falha
 - APIs administrativas para inspeção
 
-Parcial/pendente:
+Fora do escopo da Fase 2:
 - envio de resposta via API Twilio no worker
 - validação criptográfica completa da assinatura Twilio
 - frontend/admin panel neste repositório
