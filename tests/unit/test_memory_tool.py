@@ -110,7 +110,9 @@ class TestReadMemoryTool:
         store = AsyncMock()
         store.asearch.return_value = []
         runtime = _make_runtime()
-        result = asyncio.run(read_memory_fn("sem resultado", runtime=runtime, store=store))
+        result = asyncio.run(
+            read_memory_fn("sem resultado", runtime=runtime, store=store)
+        )
         assert "nenhuma memória relevante" in result.lower()
 
     def test_returns_message_when_store_missing(self):

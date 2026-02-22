@@ -76,6 +76,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Exception handlers
 @app.exception_handler(AgentNotFoundError)
 async def agent_not_found_handler(

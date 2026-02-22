@@ -32,8 +32,7 @@ AUTO_RESPONSE_AUDIO_DISABLED = (
     "Por favor, mande mensagem de texto."
 )
 AUTO_RESPONSE_UNSUPPORTED_MEDIA = (
-    "Este tipo de mídia não é suportado no momento. "
-    "Por favor, mande mensagem de texto."
+    "Este tipo de mídia não é suportado no momento. Por favor, mande mensagem de texto."
 )
 
 
@@ -158,7 +157,7 @@ async def _describe_image(media_bytes: bytes, media_type: str) -> str:
                         },
                     },
                 ],
-            }
+            },
         ]
     )
 
@@ -200,7 +199,7 @@ async def _transcribe_audio(media_bytes: bytes, media_type: str) -> str:
                         },
                     },
                 ],
-            }
+            },
         ]
     )
 
@@ -259,9 +258,7 @@ async def preprocess_incoming_message(
         if kind == "image":
             description = await _describe_image(media_bytes, media_type)
             parts = [
-                p
-                for p in [body.strip(), f"[Descrição de imagem]: {description}"]
-                if p
+                p for p in [body.strip(), f"[Descrição de imagem]: {description}"] if p
             ]
             normalized = "\n".join(parts)
 

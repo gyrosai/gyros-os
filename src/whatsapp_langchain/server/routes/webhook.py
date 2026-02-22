@@ -100,7 +100,9 @@ async def webhook_twilio(
     except ValueError:
         num_media = 0
     media_url = media_url_form.strip() if (num_media > 0 and media_url_form) else None
-    media_type = media_type_form.strip() if (num_media > 0 and media_type_form) else None
+    media_type = (
+        media_type_form.strip() if (num_media > 0 and media_type_form) else None
+    )
 
     # Rate limit
     await check_rate_limit(phone_number)

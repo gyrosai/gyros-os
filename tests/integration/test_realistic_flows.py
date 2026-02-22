@@ -482,9 +482,7 @@ class TestAgenteInvalido:
             agent="agente_fantasma",
             message_sid=unique_sid("SMERR"),
         )
-        assert resp.status_code == 400, (
-            f"Esperado HTTP 400, obteve {resp.status_code}"
-        )
+        assert resp.status_code == 400, f"Esperado HTTP 400, obteve {resp.status_code}"
         body = resp.json()
         assert "detail" in body, "Resposta 400 sem campo 'detail'"
         print(f"  ✓ HTTP 400: {body['detail']}")

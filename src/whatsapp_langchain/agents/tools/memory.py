@@ -51,7 +51,7 @@ async def save_memory(
     memory: str,
     *,
     runtime: Annotated[Any, InjectedToolArg()] = None,
-    store: Annotated[BaseStore, InjectedStore()] = None,
+    store: Annotated[BaseStore | None, InjectedStore()] = None,
 ) -> str:
     """Salva informação importante sobre o usuário para lembrar depois."""
     if store is None:
@@ -74,7 +74,7 @@ async def read_memory(
     limit: int | None = None,
     *,
     runtime: Annotated[Any, InjectedToolArg()] = None,
-    store: Annotated[BaseStore, InjectedStore()] = None,
+    store: Annotated[BaseStore | None, InjectedStore()] = None,
 ) -> str:
     """Busca memórias relevantes para a consulta atual."""
     if store is None:

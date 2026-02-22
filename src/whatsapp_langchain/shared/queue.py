@@ -158,6 +158,25 @@ async def claim_next(
     lease_until = datetime.now(UTC) + timedelta(seconds=lease_seconds)
 
     async with pool.connection() as conn:
+        # Evita mensagens presas eternamente em processing após crash:
+        # se o lease expirou e não há mais tentativas, marca como failed.
+        await conn.execute(
+            """
+            UPDATE message_queue
+            SET status = 'failed',
+                error = COALESCE(
+                    error,
+                    'Processing lease expired after max attempts'
+                ),
+                processed_at = NOW(),
+                updated_at = NOW()
+            WHERE status = 'processing'
+              AND lease_until IS NOT NULL
+              AND lease_until <= NOW()
+              AND attempts >= max_attempts
+            """
+        )
+
         cursor = await conn.execute(
             """
             UPDATE message_queue
@@ -167,9 +186,17 @@ async def claim_next(
                 updated_at = NOW()
             WHERE id = (
                 SELECT id FROM message_queue
-                WHERE status = 'queued'
-                  AND process_after <= NOW()
-                  AND attempts < max_attempts
+                WHERE (
+                    status = 'queued'
+                    AND process_after <= NOW()
+                    AND attempts < max_attempts
+                )
+                OR (
+                    status = 'processing'
+                    AND lease_until IS NOT NULL
+                    AND lease_until <= NOW()
+                    AND attempts < max_attempts
+                )
                 ORDER BY created_at ASC
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED

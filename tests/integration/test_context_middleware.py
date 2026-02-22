@@ -177,9 +177,7 @@ class TestTrimMiddleware:
 
     def test_trim_with_agent_integration(self, model):
         """Teste de integração: agente com trim responde corretamente."""
-        middleware = get_context_middleware(
-            strategy="trim", trim_keep_turns=2
-        )
+        middleware = get_context_middleware(strategy="trim", trim_keep_turns=2)
 
         agent = create_agent(
             model=model,

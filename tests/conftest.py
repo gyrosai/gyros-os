@@ -4,21 +4,11 @@ Este arquivo é carregado automaticamente pelo pytest.
 Contém fixtures reutilizáveis em todos os testes.
 """
 
-import os
-
 import pytest
 from dotenv import load_dotenv
 
 # Carrega .env antes de qualquer teste
 load_dotenv()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def check_api_key():
-    """Verifica se a API key está configurada antes de rodar testes de integração."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        pytest.skip("OPENROUTER_API_KEY não configurada. Pulando testes de integração.")
 
 
 @pytest.fixture

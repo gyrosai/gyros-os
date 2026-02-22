@@ -72,7 +72,7 @@ class TestWebhookSync:
             "/webhook/sync?agent=nao_existe",
             json={"phone": "+5511999999999", "message": "Olá"},
         )
-        assert response.status_code == 500
+        assert response.status_code == 400
 
 
 class TestWebhookTwilio:
@@ -105,7 +105,7 @@ class TestWebhookTwilio:
                 "NumMedia": "0",
             },
         )
-        assert response.status_code == 500
+        assert response.status_code == 400
 
     @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
     def test_twilio_enqueues_message(self, mock_enqueue):
@@ -133,7 +133,9 @@ class TestWebhookTwilio:
         post = openapi["paths"]["/webhook/twilio"]["post"]
         assert "requestBody" in post
 
-        form_content = post["requestBody"]["content"]["application/x-www-form-urlencoded"]
+        form_content = post["requestBody"]["content"][
+            "application/x-www-form-urlencoded"
+        ]
         schema = form_content["schema"]
         if "$ref" in schema:
             ref_name = schema["$ref"].split("/")[-1]
