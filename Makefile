@@ -1,4 +1,4 @@
-.PHONY: help dev setup db migrate api worker frontend up down reset logs lint format format-check fix typecheck check ci test test-x test-v test-demo test-demo-up test-flows clean
+.PHONY: help dev setup db migrate api worker frontend up down reset logs lint format format-check fix typecheck check ci test test-x test-v test-media test-demo test-demo-up test-flows clean
 
 # Cores para output
 CYAN := \033[36m
@@ -86,6 +86,9 @@ test-x: ## Roda testes, para no primeiro erro
 
 test-v: ## Roda testes com output verboso
 	uv run pytest -v -m "not docker_demo"
+
+test-media: ## Roda testes de mídia real (requer OPENROUTER_API_KEY)
+	uv run pytest tests/integration/test_media_real.py -v -s
 
 test-demo: ## Roda testes demonstrativos (requer stack Docker rodando)
 	uv run pytest -m docker_demo -v

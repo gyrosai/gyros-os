@@ -179,7 +179,7 @@ class TestMemoriaSemantica:
         """João salva um código secreto e recupera sem histórico de conversa."""
         phone = unique_phone("21")
         thread_id = f"{phone}:rhawk_assistant"
-        token = f"secret-{uuid.uuid4().hex[:8]}"
+        token = f"rhawk-{uuid.uuid4().hex[:8]}"
 
         print(f"\n{'=' * 60}")
         print("CENÁRIO: Memória Semântica Persistente")

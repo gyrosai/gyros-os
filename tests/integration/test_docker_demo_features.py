@@ -241,7 +241,7 @@ def test_demo_webhook_memory_recall_e2e(ensure_docker_stack: str):
     """
     phone = f"+5531{uuid.uuid4().int % 10**8:08d}"
     thread_id = f"{phone}:rhawk_assistant"
-    token = f"codex-{uuid.uuid4().hex[:10]}"
+    token = f"rhawk-{uuid.uuid4().hex[:10]}"
 
     sid_save = f"SMMEM{uuid.uuid4().hex[:12]}"
     save_response = httpx.post(
