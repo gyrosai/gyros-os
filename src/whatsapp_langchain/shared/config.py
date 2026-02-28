@@ -41,8 +41,16 @@ class Settings(BaseSettings):
     log_json: bool = False  # True em prod para logs estruturados
 
     # --- Twilio ---
+    # Inbound (validação de assinatura no webhook)
     validate_twilio_signature: bool = False
     twilio_auth_token: str = ""
+    twilio_webhook_url: str = ""
+
+    # Outbound (envio de mensagens pelo worker via API Key)
+    twilio_account_sid: str = ""
+    twilio_api_key_sid: str = ""
+    twilio_api_key_secret: str = ""
+    twilio_from_number: str = ""
 
     # --- Rate Limit ---
     rate_limit_per_hour: int = 30

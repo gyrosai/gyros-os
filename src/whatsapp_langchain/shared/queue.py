@@ -15,6 +15,7 @@ Uso:
     message = await claim_next(pool, lease_seconds=60)
 """
 
+import hashlib
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -38,9 +39,14 @@ async def enqueue_or_buffer(
 ) -> EnqueueResult:
     """Insere mensagem na fila ou agrupa com mensagem pendente (debounce).
 
-    Se existe uma mensagem 'queued' do mesmo phone+agent com process_after
-    no futuro, concatena o body e reseta o timer. Isso evita que mensagens
-    rápidas (ex: "Oi" + "Tudo bem?" em 1s) gerem duas chamadas ao agente.
+    Regras de debounce (Fase 3):
+    - Debounce somente para texto (media_url IS NULL).
+    - Mensagem com mídia não faz debounce (entrada imediata).
+    - Antes de inserir mídia, flush de texto pendente do mesmo phone+agent
+      para que o worker processe o texto ANTES da mídia (ordenação por created_at).
+    - Concorrência protegida por pg_advisory_xact_lock(hash(phone+agent)).
+
+    Limitação conhecida: NumMedia > 1 no mesmo webhook fica fora do escopo.
 
     Args:
         pool: Pool de conexões do psycopg.
@@ -57,10 +63,86 @@ async def enqueue_or_buffer(
         EnqueueResult com message_id e se foi buffered.
     """
     thread_id = f"{phone_number}:{agent_id}"
-    process_after = datetime.now(UTC) + timedelta(seconds=buffer_seconds)
+    has_media = media_url is not None
+
+    # Hash determinístico para pg_advisory_xact_lock.
+    # Usa os 8 bytes iniciais do SHA-256 convertidos para int64 signed,
+    # garantindo chave única por phone+agent sem risco de colisão prática.
+    lock_key = int.from_bytes(
+        hashlib.sha256(thread_id.encode()).digest()[:8],
+        byteorder="big",
+        signed=True,
+    )
 
     async with pool.connection() as conn:
-        # Tenta encontrar mensagem existente para debounce
+        # Lock transacional: serializa debounce para o mesmo phone+agent.
+        # Liberado automaticamente no commit/rollback da transação.
+        await conn.execute("SELECT pg_advisory_xact_lock(%s)", (lock_key,))
+
+        if has_media:
+            # Mídia: flush texto pendente e inserir imediatamente.
+            # O flush antecipa o process_after de textos aguardando debounce,
+            # garantindo que o worker os processe antes da mídia (via created_at).
+            flushed = await conn.execute(
+                """
+                UPDATE message_queue
+                SET process_after = NOW(),
+                    updated_at = NOW()
+                WHERE phone_number = %s
+                  AND agent_id = %s
+                  AND status = 'queued'
+                  AND process_after > NOW()
+                  AND media_url IS NULL
+                """,
+                (phone_number, agent_id),
+            )
+            if flushed.rowcount and flushed.rowcount > 0:
+                logger.info(
+                    "text_flushed_for_media",
+                    phone=phone_number,
+                    agent_id=agent_id,
+                    flushed_count=flushed.rowcount,
+                )
+
+            # Inserir mídia com process_after=NOW() (sem buffer)
+            cursor = await conn.execute(
+                """
+                INSERT INTO message_queue
+                    (message_id, phone_number, to_number, agent_id,
+                     thread_id, incoming_message, media_url, media_type,
+                     process_after)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id
+                """,
+                (
+                    message_id,
+                    phone_number,
+                    to_number,
+                    agent_id,
+                    thread_id,
+                    body,
+                    media_url,
+                    media_type,
+                ),
+            )
+            row = await cursor.fetchone()
+            assert row is not None
+            new_id = row[0]
+            await conn.commit()
+
+            logger.info(
+                "media_message_enqueued",
+                message_id=new_id,
+                phone=phone_number,
+                agent_id=agent_id,
+            )
+            return EnqueueResult(message_id=new_id, is_buffered=False)
+
+        # Texto: debounce normal (agrupa com texto pendente se existir)
+        process_after = datetime.now(UTC) + timedelta(seconds=buffer_seconds)
+
+        # Busca texto pendente para debounce (media_url IS NULL garante
+        # que não debounce texto dentro de uma mensagem de mídia)
         cursor = await conn.execute(
             """
             SELECT id, incoming_message
@@ -69,6 +151,7 @@ async def enqueue_or_buffer(
               AND agent_id = %s
               AND status = 'queued'
               AND process_after > NOW()
+              AND media_url IS NULL
             ORDER BY created_at DESC
             LIMIT 1
             """,
@@ -77,7 +160,7 @@ async def enqueue_or_buffer(
         existing = await cursor.fetchone()
 
         if existing:
-            # Debounce: concatena mensagem e reseta timer
+            # Debounce: concatena texto e reseta timer
             existing_id, existing_body = existing
             new_body = f"{existing_body}\n{body}"
 
@@ -86,12 +169,10 @@ async def enqueue_or_buffer(
                 UPDATE message_queue
                 SET incoming_message = %s,
                     process_after = %s,
-                    media_url = COALESCE(%s, media_url),
-                    media_type = COALESCE(%s, media_type),
                     updated_at = NOW()
                 WHERE id = %s
                 """,
-                (new_body, process_after, media_url, media_type, existing_id),
+                (new_body, process_after, existing_id),
             )
             await conn.commit()
 
@@ -103,7 +184,7 @@ async def enqueue_or_buffer(
             )
             return EnqueueResult(message_id=existing_id, is_buffered=True)
 
-        # Nova mensagem na fila
+        # Nova mensagem de texto na fila
         cursor = await conn.execute(
             """
             INSERT INTO message_queue
@@ -119,8 +200,8 @@ async def enqueue_or_buffer(
                 agent_id,
                 thread_id,
                 body,
-                media_url,
-                media_type,
+                None,
+                None,
                 process_after,
             ),
         )

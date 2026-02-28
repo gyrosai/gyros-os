@@ -49,11 +49,17 @@ class MediaPreprocessResult:
 
 async def download_media(
     url: str,
-    account_sid: str = "",
-    auth_token: str = "",
 ) -> bytes:
-    """Faz download de mídia do Twilio."""
-    auth = (account_sid, auth_token) if account_sid else None
+    """Faz download de mídia do Twilio.
+
+    Autentica com API Key (api_key_sid:api_key_secret) — mesmas credenciais
+    usadas pelo TwilioClient para envio outbound.
+    """
+    auth = (
+        (settings.twilio_api_key_sid, settings.twilio_api_key_secret)
+        if settings.twilio_api_key_sid
+        else None
+    )
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url, auth=auth, follow_redirects=True)

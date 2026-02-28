@@ -10,6 +10,7 @@ Este guia tem duas trilhas:
 - `uv` (gerenciador de pacotes)
 - Docker + Docker Compose
 - conta OpenRouter (API key)
+- conta Twilio com sandbox WhatsApp (obrigatória para o Worker — veja [Integração Twilio](TWILIO.md), seções 1.1 e 1.2 para criação de conta/credenciais)
 
 ## 1. Setup local
 
@@ -25,6 +26,12 @@ Edite `.env` e configure no mínimo:
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MIDIA_MODEL=google/gemini-2.5-flash-lite
+
+# Twilio (obrigatório para o Worker)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_FROM_NUMBER=whatsapp:+14155238886
 ```
 
 ## 2. Trilha A: desenvolvimento de agente no Studio
@@ -254,6 +261,7 @@ grep OPENROUTER_API_KEY .env
 
 ## Próximos passos
 
+- [Integração Twilio](TWILIO.md)
 - [Arquitetura](ARCHITECTURE.md)
 - [Criando Agentes](ADDING_AGENTS.md)
 - [Banco de Dados](DATABASE.md)

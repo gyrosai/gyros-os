@@ -1,15 +1,29 @@
-"""Processador de mensagens — orquestra agente e fila.
+"""Processador de mensagens — orquestra agente, typing e envio Twilio.
 
 Responsável por:
-1. Construir a HumanMessage (com mídia se houver)
-2. Carregar o agente via loader (com checkpointer PostgreSQL)
-3. Executar o agente
-4. Salvar a resposta no banco (mark_done ou mark_failed)
+1. Pré-processar entrada (mídia -> texto)
+2. Enviar typing indicator (best-effort)
+3. Carregar o agente via loader (com checkpointer PostgreSQL)
+4. Executar o agente
+5. Enviar resposta ao usuário via Twilio
+6. Salvar no banco (mark_done somente após envio confirmado)
+
+Decisões arquiteturais (Fase 3):
+- Twilio é obrigatório — não existe caminho sem envio confirmado.
+- Typing é tentado em 100% das execuções normais (best-effort).
+- Falha de typing NÃO interrompe o processamento.
+- mark_done ocorre somente após envio Twilio bem-sucedido.
+- Falha de envio entra no fluxo de retry (mark_failed).
 
 Uso:
     from whatsapp_langchain.worker.processor import process_message
 
-    await process_message(message, pool, checkpointer=checkpointer, store=store)
+    await process_message(
+        message, pool,
+        checkpointer=checkpointer,
+        store=store,
+        twilio=twilio,
+    )
 """
 
 import structlog
@@ -29,6 +43,7 @@ from whatsapp_langchain.worker.media import (
     AUTO_RESPONSE_MEDIA_FAILURE,
     preprocess_incoming_message,
 )
+from whatsapp_langchain.worker.twilio_client import TwilioClient
 
 logger = structlog.get_logger()
 
@@ -39,17 +54,22 @@ async def process_message(
     *,
     checkpointer: BaseCheckpointSaver,
     store: BaseStore | None = None,
+    twilio: TwilioClient,
 ) -> None:
     """Processa uma mensagem da fila com o agente apropriado.
 
-    Faz download de mídia se presente, carrega o grafo do agente com
-    checkpointer PostgreSQL, executa e salva a resposta.
+    Faz download de mídia se presente, envia typing, carrega o grafo
+    do agente com checkpointer PostgreSQL, executa, envia a resposta
+    via Twilio e salva no banco.
+
+    Twilio é obrigatório — nenhum mark_done ocorre sem envio confirmado.
 
     Args:
         message: Mensagem a processar (já reservada via claim).
         pool: Pool de conexões do psycopg.
         checkpointer: Checkpointer LangGraph já inicializado no boot.
         store: Store LangGraph compartilhado (None se memória desabilitada).
+        twilio: Cliente Twilio para envio (obrigatório).
     """
     logger.info(
         "processing_message",
@@ -70,6 +90,10 @@ async def process_message(
         # Se mídia está desabilitada ou falhou, não chama o agente
         if not pre.should_invoke_agent:
             auto_response = pre.auto_response or AUTO_RESPONSE_MEDIA_FAILURE
+
+            # Enviar auto-response via Twilio antes de marcar como done
+            await twilio.send_message(message.phone_number, auto_response)
+
             await mark_done(
                 pool,
                 message.id,
@@ -93,10 +117,21 @@ async def process_message(
             )
             return
 
+        # 2. Typing indicator (best-effort, falha não interrompe processamento)
+        try:
+            await twilio.send_typing(message.phone_number, message.message_id)
+        except Exception as typing_err:
+            logger.warning(
+                "typing_failed",
+                message_id=message.id,
+                phone=message.phone_number,
+                error=str(typing_err),
+            )
+
+        # 3. Carregar agente com checkpointer + store (se memória habilitada)
         normalized_text = pre.normalized_text or message.incoming_message
         human_message = HumanMessage(content=normalized_text)
 
-        # 2. Carregar agente com checkpointer + store (se memória habilitada)
         invoke_config = {
             "configurable": {
                 "thread_id": message.thread_id,
@@ -117,7 +152,10 @@ async def process_message(
         # 4. Extrair resposta
         response_text = result["messages"][-1].content
 
-        # 5. Salvar resultado
+        # 5. Enviar resposta via Twilio (obrigatório antes de mark_done)
+        await twilio.send_message(message.phone_number, response_text)
+
+        # 6. mark_done somente após envio confirmado
         await mark_done(
             pool,
             message.id,
