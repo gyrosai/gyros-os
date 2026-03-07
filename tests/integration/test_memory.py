@@ -6,10 +6,7 @@ InMemoryStore (sem PostgreSQL, sem embeddings — busca por texto).
 Executar com: pytest tests/integration/test_memory.py -v
 """
 
-import os
-
 import pytest
-from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
@@ -19,20 +16,14 @@ from pydantic import SecretStr
 
 from whatsapp_langchain.agents.tools import read_memory, save_memory
 
-load_dotenv()
-
 
 @pytest.fixture
-def model():
+def model(live_openrouter_api_key):
     """Modelo configurado para testes."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        pytest.skip("OPENROUTER_API_KEY não configurada")
-
     return ChatOpenAI(
-        model=os.getenv("OPENROUTER_MODEL", "x-ai/grok-4.1-fast"),
-        api_key=SecretStr(api_key),
-        base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        model="x-ai/grok-4.1-fast",
+        api_key=SecretStr(live_openrouter_api_key),
+        base_url="https://openrouter.ai/api/v1",
     )
 
 

@@ -1,15 +1,13 @@
 """Testes de integração para middlewares de contexto.
 
-Estes testes verificam se as estratégias de gerenciamento de contexto
-(trim, summarize, none) funcionam corretamente com o agente real.
+Os cenários com chamadas reais ao modelo são opt-in e exigem:
+- OPENROUTER_API_KEY válida
+- OPENROUTER_LIVE_TESTS=1
 
 Executar com: pytest tests/integration/ -v
 """
 
-import os
-
 import pytest
-from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
@@ -17,23 +15,16 @@ from pydantic import SecretStr
 
 from whatsapp_langchain.agents.middleware import get_context_middleware
 
-load_dotenv()
-
-
 # --- Fixtures ---
 
 
 @pytest.fixture
-def model():
+def model(live_openrouter_api_key):
     """Modelo configurado para testes."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        pytest.skip("OPENROUTER_API_KEY não configurada")
-
     return ChatOpenAI(
-        model=os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b"),
-        api_key=SecretStr(api_key),
-        base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        model="openai/gpt-oss-120b",
+        api_key=SecretStr(live_openrouter_api_key),
+        base_url="https://openrouter.ai/api/v1",
     )
 
 

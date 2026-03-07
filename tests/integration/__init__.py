@@ -1,5 +1,5 @@
 """Testes de integração.
 
-Estes testes fazem chamadas reais ao LLM via OpenRouter.
-Requerem OPENROUTER_API_KEY configurada no .env.
+Alguns cenários fazem chamadas reais ao LLM via OpenRouter.
+Os testes live exigem OPENROUTER_API_KEY válida e OPENROUTER_LIVE_TESTS=1.
 """

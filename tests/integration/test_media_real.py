@@ -6,20 +6,16 @@ um áudio de verdade — sem mocks na IA, apenas no download de mídia.
 Executar com: uv run pytest tests/integration/test_media_real.py -v
 """
 
-import os
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from dotenv import load_dotenv
 
 from whatsapp_langchain.worker.media import (
     _describe_image,
     _transcribe_audio,
     preprocess_incoming_message,
 )
-
-load_dotenv()
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 
@@ -28,12 +24,9 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 
 
 @pytest.fixture
-def media_api_key():
-    """Lê OPENROUTER_API_KEY do env, pula se ausente."""
-    key = os.getenv("OPENROUTER_API_KEY")
-    if not key:
-        pytest.skip("OPENROUTER_API_KEY não configurada")
-    return key
+def media_api_key(live_openrouter_api_key):
+    """Garante opt-in explícito para os testes live de mídia."""
+    return live_openrouter_api_key
 
 
 @pytest.fixture

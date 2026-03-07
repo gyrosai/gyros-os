@@ -14,7 +14,7 @@ O objetivo deste repositório é ensinar arquitetura de sistemas em volta do age
 
 ## Fase Atual
 
-**Fase 2 concluída (pronta para tag e início da Fase 3).**
+**Fase 3 concluída no código.**
 
 Já implementado no código:
 - API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
@@ -30,11 +30,15 @@ Já implementado no código:
 - rate limit por telefone (in-memory)
 - rotas administrativas (`/api/agents`, `/api/chats`, `/api/metrics`)
 - endpoint síncrono educacional (`/webhook/sync`)
+- validação criptográfica de `X-Twilio-Signature`
+- envio real de resposta via Twilio Messages API
+- typing indicator via Twilio antes do processamento
+- documentação de sandbox/webhook/túnel com cloudflared
 
-Fora do escopo da Fase 2 (próximas fases):
-- envio de resposta para WhatsApp via API Twilio (worker hoje salva resposta no banco)
-- validação completa de assinatura Twilio
+Fase 4 será o fechamento operacional do projeto:
 - frontend/admin panel integrado neste repositório
+- deploy documentado e reprodutível
+- stress testing e hardening final
 
 ## Arquitetura
 
@@ -67,7 +71,7 @@ Edite o `.env` e configure pelo menos:
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
-### 2. Suba o stack da Fase 2
+### 2. Suba o stack local
 
 ```bash
 make up
@@ -144,6 +148,7 @@ Para detalhes técnicos:
 - [Primeiros Passos](docs/GETTING_STARTED.md)
 - [Criando Agentes](docs/ADDING_AGENTS.md)
 - [Banco de Dados](docs/DATABASE.md)
+- [Integração Twilio](docs/TWILIO.md)
 - [Deploy](docs/DEPLOY.md)
 
 
@@ -156,6 +161,7 @@ make api
 make worker
 make migrate
 make test
+make test-live
 make check
 make logs
 make reset
@@ -166,8 +172,8 @@ make test-demo
 
 - **Fase 1** concluída: base de agentes + middleware de contexto
 - **Fase 2** concluída: API + Worker + PostgreSQL + observabilidade operacional
-- **Fase 3** planejada: integração Twilio (envio/assinatura) + cenários de debounce
-- **Fase 4** planejada: deploy de produção + testes de stress sob carga
+- **Fase 3** concluída: integração Twilio + assinatura real + typing + reforço dos testes de debounce
+- **Fase 4** em aberto: frontend/admin panel + deploy + stress + hardening final
 
 ## Licença
 
