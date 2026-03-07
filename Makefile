@@ -29,13 +29,11 @@ api: ## Roda a API localmente (fora do Docker)
 worker: ## Roda o Worker localmente (fora do Docker)
 	uv run python -m whatsapp_langchain.worker.main
 
-frontend: ## Admin Panel da Fase 4 (ainda nao implementado nesta branch)
-	@echo "frontend/ ainda nao existe nesta branch."
-	@echo "O Admin Panel sera implementado na Fase 4."
-	@exit 1
+frontend: ## Admin Panel (Next.js)
+	cd frontend && npm run dev
 
 ##@ Docker
-up: ## Inicia todos os serviços (API + Worker + DB)
+up: ## Inicia todos os serviços (API + Worker + Frontend + DB)
 	docker compose up -d
 
 down: ## Para todos os serviços

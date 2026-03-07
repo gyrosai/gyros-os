@@ -19,9 +19,6 @@ from whatsapp_langchain.agents.loader import AgentNotFoundError
 from whatsapp_langchain.server.routes.admin import router as admin_router
 from whatsapp_langchain.server.routes.health import router as health_router
 from whatsapp_langchain.server.routes.webhook import router as webhook_router
-from whatsapp_langchain.server.routes.webhook_sync import (
-    router as webhook_sync_router,
-)
 from whatsapp_langchain.shared.config import settings
 from whatsapp_langchain.shared.db import (
     bootstrap_langgraph_schema,
@@ -93,5 +90,13 @@ async def agent_not_found_handler(
 # Routers
 app.include_router(health_router)
 app.include_router(webhook_router)
-app.include_router(webhook_sync_router)
 app.include_router(admin_router)
+
+# Webhook sincrono — apenas para dev/testes, nunca em producao.
+# Em producao, use o webhook async (Twilio) que passa pela fila.
+if settings.environment != "production":
+    from whatsapp_langchain.server.routes.webhook_sync import (
+        router as webhook_sync_router,
+    )
+
+    app.include_router(webhook_sync_router)

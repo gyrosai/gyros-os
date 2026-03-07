@@ -47,34 +47,42 @@ async def main() -> None:
     if store:
         await store.setup()
 
-    # Twilio outbound: obrigatório — fail-fast se credenciais ausentes.
-    # Usa API Key (api_key_sid + api_key_secret) para envio,
-    # separado de auth_token (usado apenas para validação de assinatura inbound).
-    missing = []
-    if not settings.twilio_account_sid:
-        missing.append("TWILIO_ACCOUNT_SID")
-    if not settings.twilio_api_key_sid:
-        missing.append("TWILIO_API_KEY_SID")
-    if not settings.twilio_api_key_secret:
-        missing.append("TWILIO_API_KEY_SECRET")
-    if not settings.twilio_from_number:
-        missing.append("TWILIO_FROM_NUMBER")
+    outbound_mode = settings.resolved_twilio_outbound_mode
+    if outbound_mode == "real":
+        missing = []
+        if not settings.twilio_account_sid:
+            missing.append("TWILIO_ACCOUNT_SID")
+        if not settings.twilio_api_key_sid:
+            missing.append("TWILIO_API_KEY_SID")
+        if not settings.twilio_api_key_secret:
+            missing.append("TWILIO_API_KEY_SECRET")
+        if not settings.twilio_from_number:
+            missing.append("TWILIO_FROM_NUMBER")
 
-    if missing:
-        logger.error(
-            "twilio_credentials_missing",
-            missing=missing,
-        )
-        msg = f"Twilio obrigatório. Variáveis ausentes: {', '.join(missing)}"
-        raise SystemExit(msg)
+        if missing:
+            logger.error(
+                "twilio_credentials_missing",
+                missing=missing,
+                outbound_mode=outbound_mode,
+            )
+            msg = (
+                "Twilio outbound em modo real requer variáveis: "
+                f"{', '.join(missing)}"
+            )
+            raise SystemExit(msg)
 
     twilio = TwilioClient(
         account_sid=settings.twilio_account_sid,
         api_key_sid=settings.twilio_api_key_sid,
         api_key_secret=settings.twilio_api_key_secret,
         from_number=settings.twilio_from_number,
+        delivery_mode=outbound_mode,
     )
-    logger.info("twilio_client_ready", from_number=settings.twilio_from_number)
+    logger.info(
+        "twilio_client_ready",
+        outbound_mode=outbound_mode,
+        from_number=settings.twilio_from_number or None,
+    )
 
     logger.info(
         "worker_ready",

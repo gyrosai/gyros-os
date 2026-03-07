@@ -35,6 +35,11 @@ class Settings(BaseSettings):
         "postgresql://postgres:postgres@localhost:5432/whatsapp_langchain"
     )
 
+    # --- Environment ---
+    # "development" (default) ou "production" — controla comportamentos como
+    # exposicao do webhook sincrono (desabilitado em production)
+    environment: str = "development"
+
     # --- Server ---
     port: int = 8000
     log_level: str = "info"
@@ -47,6 +52,8 @@ class Settings(BaseSettings):
     twilio_webhook_url: str = ""
 
     # Outbound (envio de mensagens pelo worker via API Key)
+    # Em dev local o fallback efetivo e "mock"; em production, "real".
+    twilio_outbound_mode: str = ""
     twilio_account_sid: str = ""
     twilio_api_key_sid: str = ""
     twilio_api_key_secret: str = ""
@@ -86,12 +93,26 @@ class Settings(BaseSettings):
     summarize_keep_messages: int = 10
     summarize_model: str = "x-ai/grok-4.1-fast"
 
+    # --- Internal Service Token ---
+    # Token compartilhado entre frontend e API para proteger rotas administrativas.
+    # Em produção, use um token forte gerado aleatoriamente.
+    internal_service_token: str = "dev-token-change-in-production"
+
     # --- Semantic Memory (LangGraph Store) ---
     memory_enabled: bool = True
     # Nome do modelo no OpenRouter (sem prefixo "openai:")
     embedding_model: str = "openai/text-embedding-3-small"
     embedding_dims: int = 1536
     memory_search_limit: int = 5
+
+    @property
+    def resolved_twilio_outbound_mode(self) -> str:
+        """Resolve o modo outbound do Twilio com fallback seguro por ambiente."""
+        mode = self.twilio_outbound_mode.strip().lower()
+        if mode:
+            return mode
+
+        return "real" if self.environment == "production" else "mock"
 
 
 # Singleton — importar de qualquer lugar do projeto

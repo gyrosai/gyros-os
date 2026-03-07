@@ -152,10 +152,18 @@ class TestWebhookTwilio:
 class TestAdminRoutes:
     """Testes das rotas administrativas."""
 
+    # Header com o token de servico padrao (mesmo de config.py)
+    auth_headers = {"Authorization": "Bearer dev-token-change-in-production"}
+
     def test_list_agents(self):
         """Deve listar agentes disponíveis."""
-        response = client.get("/api/agents")
+        response = client.get("/api/agents", headers=self.auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "agents" in data
         assert "rhawk_assistant" in data["agents"]
+
+    def test_list_agents_requires_token(self):
+        """Deve rejeitar requisição sem token de serviço."""
+        response = client.get("/api/agents")
+        assert response.status_code == 401

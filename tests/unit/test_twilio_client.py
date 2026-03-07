@@ -16,6 +16,7 @@ TEST_SID = "ACtest123"
 TEST_API_KEY_SID = "SKtest456"
 TEST_API_KEY_SECRET = "test_api_key_secret"
 TEST_FROM = "whatsapp:+14155238886"
+VALID_MESSAGE_SID = "SM1234567890abcdef1234567890abcdef"
 
 
 @pytest.fixture
@@ -97,6 +98,11 @@ class TestTwilioClientInit:
             TwilioClient(
                 TEST_SID, TEST_API_KEY_SID, TEST_API_KEY_SECRET, "whatsapp:14155238886"
             )
+
+    def test_allows_mock_mode_without_real_credentials(self):
+        """Modo mock não exige credenciais Twilio válidas."""
+        client = TwilioClient("", "", "", "", delivery_mode="mock")
+        assert client.delivery_mode == "mock"
 
 
 class TestSendMessage:
@@ -243,7 +249,7 @@ class TestSendTyping:
 
         monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
 
-        result = await client.send_typing("+5511999999999", "SM123abc")
+        result = await client.send_typing("+5511999999999", VALID_MESSAGE_SID)
         assert result is True
 
     async def test_returns_false_on_error(self, client, monkeypatch):
@@ -257,7 +263,7 @@ class TestSendTyping:
 
         monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
 
-        result = await client.send_typing("+5511999999999", "SM123abc")
+        result = await client.send_typing("+5511999999999", VALID_MESSAGE_SID)
         assert result is False
 
     async def test_does_not_raise_on_exception(self, client, monkeypatch):
@@ -268,5 +274,21 @@ class TestSendTyping:
 
         monkeypatch.setattr(httpx.AsyncClient, "__init__", raise_init)
 
+        result = await client.send_typing("+5511999999999", VALID_MESSAGE_SID)
+        assert result is False
+
+    async def test_skips_typing_with_invalid_message_sid_format(self, client):
+        """Typing com SID fake/local invalido não chama o Twilio."""
         result = await client.send_typing("+5511999999999", "SM123abc")
         assert result is False
+
+
+class TestMockMode:
+    """Testes do modo mock local do cliente."""
+
+    async def test_mock_send_message_returns_fake_sid(self):
+        """Mock mode simula envio sem quota externa."""
+        client = TwilioClient("", "", "", "", delivery_mode="mock")
+        sid = await client.send_message("+5511999999999", "Olá!")
+        assert sid.startswith("SM")
+        assert len(sid) == 34

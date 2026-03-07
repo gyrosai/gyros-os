@@ -10,7 +10,7 @@ Este guia tem duas trilhas:
 - `uv` (gerenciador de pacotes)
 - Docker + Docker Compose
 - conta OpenRouter (API key)
-- conta Twilio com sandbox WhatsApp (obrigatória para o Worker — veja [Integração Twilio](TWILIO.md), seções 1.1 e 1.2 para criação de conta/credenciais)
+- conta Twilio com sandbox WhatsApp (obrigatória apenas para envio real; o compose local pode rodar em modo mock)
 
 ## 1. Setup local
 
@@ -26,8 +26,13 @@ Edite `.env` e configure no mínimo:
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MIDIA_MODEL=google/gemini-2.5-flash-lite
+TWILIO_OUTBOUND_MODE=mock
+```
 
-# Twilio (obrigatório para o Worker)
+Se quiser validar envio real pelo Twilio no ambiente local:
+
+```bash
+TWILIO_OUTBOUND_MODE=real
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -59,7 +64,8 @@ make up
 Isso sobe:
 - `db` (PostgreSQL + pgvector)
 - `api` (FastAPI)
-- `worker` (consumidor da fila)
+- `worker` (consumidor da fila; em dev usa Twilio mock por default)
+- `frontend` (painel administrativo)
 
 ### Reset completo do ambiente Docker
 
@@ -107,9 +113,9 @@ curl -X POST "http://localhost:8000/webhook/twilio?agent=rhawk_assistant" \
 Depois consulte:
 
 ```bash
-curl http://localhost:8000/api/metrics
-curl http://localhost:8000/api/chats
-curl http://localhost:8000/api/chats/+5511999999999
+curl -H "Authorization: Bearer dev-token-change-in-production" http://localhost:8000/api/metrics
+curl -H "Authorization: Bearer dev-token-change-in-production" http://localhost:8000/api/chats
+curl -H "Authorization: Bearer dev-token-change-in-production" http://localhost:8000/api/chats/+5511999999999
 ```
 
 ### 4.2.1 Teste manual no Swagger (`/docs`)

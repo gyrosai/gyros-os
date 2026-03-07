@@ -35,6 +35,7 @@ from .helpers import (
     API_BASE_URL,
     clear_thread_checkpoints,
     count_queue_entries,
+    get_admin_api_headers,
     get_db_url,
     query_conversation,
     query_queue_entry,
@@ -49,6 +50,7 @@ from .helpers import (
 )
 
 pytestmark = pytest.mark.docker_demo
+ADMIN_API_HEADERS = get_admin_api_headers()
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +140,11 @@ class TestJornadaNovoUsuario:
 
         # --- Passo 3: Verificação via API Admin ---
         print("[7/8] Verificando via GET /api/chats/{phone}...")
-        chat_resp = httpx.get(f"{API_BASE_URL}/api/chats/{phone}", timeout=10)
+        chat_resp = httpx.get(
+            f"{API_BASE_URL}/api/chats/{phone}",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert chat_resp.status_code == 200
         chat_data = chat_resp.json()
         messages = chat_data["messages"]
@@ -150,7 +156,11 @@ class TestJornadaNovoUsuario:
         print(f"  ✓ API retornou {len(done_msgs)} mensagens processadas")
 
         print("[8/8] Verificando via GET /api/chats (listagem)...")
-        list_resp = httpx.get(f"{API_BASE_URL}/api/chats", timeout=10)
+        list_resp = httpx.get(
+            f"{API_BASE_URL}/api/chats",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert list_resp.status_code == 200
         chats = list_resp.json()["chats"]
         our_chat = [c for c in chats if c["phone_number"] == phone]
@@ -373,7 +383,11 @@ class TestUsuariosSimultaneos:
 
         # --- Passo 4: Verificar métricas ---
         print("[4/4] Verificando GET /api/metrics...")
-        metrics_resp = httpx.get(f"{API_BASE_URL}/api/metrics", timeout=10)
+        metrics_resp = httpx.get(
+            f"{API_BASE_URL}/api/metrics",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert metrics_resp.status_code == 200
         metrics = metrics_resp.json()
         print(f"  total_today: {metrics['total_today']}")
@@ -526,7 +540,11 @@ class TestConsistenciaAPIAdmin:
 
         # --- GET /api/agents ---
         print("[2/5] Verificando GET /api/agents...")
-        agents_resp = httpx.get(f"{API_BASE_URL}/api/agents", timeout=10)
+        agents_resp = httpx.get(
+            f"{API_BASE_URL}/api/agents",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert agents_resp.status_code == 200
         agents = agents_resp.json()["agents"]
         assert "rhawk_assistant" in agents, (
@@ -536,7 +554,11 @@ class TestConsistenciaAPIAdmin:
 
         # --- GET /api/chats ---
         print("[3/5] Verificando GET /api/chats...")
-        chats_resp = httpx.get(f"{API_BASE_URL}/api/chats?limit=100", timeout=10)
+        chats_resp = httpx.get(
+            f"{API_BASE_URL}/api/chats?limit=100",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert chats_resp.status_code == 200
         chats_data = chats_resp.json()
         chats = chats_data["chats"]
@@ -547,7 +569,11 @@ class TestConsistenciaAPIAdmin:
 
         # --- GET /api/chats/{phone} ---
         print(f"[4/5] Verificando GET /api/chats/{phone}...")
-        msgs_resp = httpx.get(f"{API_BASE_URL}/api/chats/{phone}", timeout=10)
+        msgs_resp = httpx.get(
+            f"{API_BASE_URL}/api/chats/{phone}",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert msgs_resp.status_code == 200
         msgs = msgs_resp.json()["messages"]
         assert len(msgs) >= 1, "Nenhuma mensagem retornada"
@@ -560,7 +586,11 @@ class TestConsistenciaAPIAdmin:
 
         # --- GET /api/metrics ---
         print("[5/5] Verificando GET /api/metrics...")
-        metrics_resp = httpx.get(f"{API_BASE_URL}/api/metrics", timeout=10)
+        metrics_resp = httpx.get(
+            f"{API_BASE_URL}/api/metrics",
+            headers=ADMIN_API_HEADERS,
+            timeout=10,
+        )
         assert metrics_resp.status_code == 200
         metrics = metrics_resp.json()
         assert metrics["total_today"] >= 1, "total_today deveria ser >= 1"

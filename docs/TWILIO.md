@@ -76,6 +76,9 @@ Todas as variáveis Twilio no `.env`:
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # --- Outbound (Worker → Twilio Messages API) ---
+# mock em dev local / real para envio de verdade
+TWILIO_OUTBOUND_MODE=mock
+
 # API Key: Console → Account → API keys & tokens → Create API Key
 TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -94,6 +97,10 @@ VALIDATE_TWILIO_SIGNATURE=false
 # (ex: https://abc.trycloudflare.com, NÃO incluir /webhook/twilio)
 TWILIO_WEBHOOK_URL=
 ```
+
+Em desenvolvimento local, `TWILIO_OUTBOUND_MODE=mock` permite validar fila,
+worker, admin panel e E2E sem consumir cota do sandbox. Para testes reais de
+WhatsApp, mude para `TWILIO_OUTBOUND_MODE=real`.
 
 **Onde encontrar:**
 - `TWILIO_ACCOUNT_SID` e `TWILIO_AUTH_TOKEN`: [Console Twilio](https://console.twilio.com/) → Account Info
@@ -241,7 +248,10 @@ curl -X POST "https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_a
 
 \* Usada pela dependency de validação de assinatura no webhook.
 
-> **Fase 3:** Twilio é obrigatório no Worker. O Worker faz fail-fast na inicialização se `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` ou `TWILIO_FROM_NUMBER` estiverem vazios. Nenhum `mark_done` ocorre sem envio Twilio confirmado.
+> Em `TWILIO_OUTBOUND_MODE=real`, o Worker faz fail-fast se `TWILIO_ACCOUNT_SID`,
+> `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` ou `TWILIO_FROM_NUMBER`
+> estiverem vazios. Em `mock`, o fluxo assíncrono continua funcional, mas o
+> envio outbound é apenas simulado.
 
 ## 8. Debounce e mídia
 
