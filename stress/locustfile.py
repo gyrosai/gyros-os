@@ -11,9 +11,15 @@ Variaveis de ambiente necessarias:
 
 Uso:
     cd stress
-    pip install -r requirements.txt
-    TWILIO_AUTH_TOKEN=seu_token TWILIO_WEBHOOK_URL=http://localhost:8000 locust
+    uv venv && source .venv/bin/activate
+    uv pip install -r requirements.txt
+    locust
 """
+
+from dotenv import load_dotenv
+
+# Carrega .env do diretório stress/ (se existir)
+load_dotenv()
 
 import base64
 import hashlib

@@ -2,19 +2,20 @@
 
 Infraestrutura para testes de carga na API WhatsApp LangChain usando [Locust](https://locust.io/).
 
-## O que e stress testing?
+## O que é stress testing?
 
-Stress testing simula multiplos usuarios enviando mensagens simultaneamente para identificar gargalos, limites de capacidade e comportamento sob pressao. Diferente de testes unitarios que validam corretude, testes de carga validam **performance e resiliencia**.
+Stress testing simula múltiplos usuários enviando mensagens simultaneamente para identificar gargalos, limites de capacidade e comportamento sob pressão. Diferente de testes unitários que validam corretude, testes de carga validam **performance e resiliência**.
 
-## Pre-requisitos
+## Pré-requisitos
 
 - Python 3.12+
+- [uv](https://docs.astral.sh/uv/) instalado
 - A API rodando localmente (`make up`) ou em ambiente remoto
 - O mesmo `TWILIO_AUTH_TOKEN` configurado na API
 
-## Variaveis de ambiente
+## Variáveis de ambiente
 
-| Variavel | Obrigatoria | Descricao |
+| Variável | Obrigatória | Descrição |
 |---|---|---|
 | `TWILIO_AUTH_TOKEN` | Sim | Token do Twilio (mesmo da API) — usado para assinar requests |
 | `TWILIO_WEBHOOK_URL` | Sim | URL base do webhook (ex: `http://localhost:8000`) |
@@ -23,9 +24,13 @@ Stress testing simula multiplos usuarios enviando mensagens simultaneamente para
 
 ```bash
 cd stress
-pip install -r requirements.txt
 
-# Configura as variaveis (use o mesmo token da API)
+# Cria ambiente virtual e instala dependências
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+
+# Configura as variáveis (use o mesmo token da API)
 export TWILIO_AUTH_TOKEN=seu_token_aqui
 export TWILIO_WEBHOOK_URL=http://localhost:8000
 
@@ -33,7 +38,7 @@ export TWILIO_WEBHOOK_URL=http://localhost:8000
 locust
 ```
 
-Acesse a Web UI em **http://localhost:8089** para configurar o numero de usuarios e iniciar o teste.
+Acesse a Web UI em **http://localhost:8089** para configurar o número de usuários e iniciar o teste.
 
 ## Como rodar via Docker
 
@@ -50,20 +55,20 @@ docker run -p 8089:8089 \
   whatsapp-stress
 ```
 
-> **Nota:** Use `host.docker.internal` em vez de `localhost` quando a API roda na maquina host fora do Docker.
+> **Nota:** Use `host.docker.internal` em vez de `localhost` quando a API roda na máquina host fora do Docker.
 
 Acesse a Web UI em **http://localhost:8089**.
 
-## Cenarios de teste
+## Cenários de teste
 
-| Cenario | Peso | Descricao |
+| Cenário | Peso | Descrição |
 |---|---|---|
 | Mensagem normal | 10 | Frases curtas (3-15 palavras) — simula conversa casual |
-| Mensagem longa | 1 | Paragrafos com ~10 frases — testa limites de texto |
+| Mensagem longa | 1 | Parágrafos com ~10 frases — testa limites de texto |
 
 ## Modo headless (sem Web UI)
 
-Para rodar sem interface grafica (util em CI/CD):
+Para rodar sem interface gráfica (útil em CI/CD):
 
 ```bash
 locust --headless -u 10 -r 2 -t 60s \
@@ -71,6 +76,6 @@ locust --headless -u 10 -r 2 -t 60s \
   --host http://localhost:8000
 ```
 
-- `-u 10`: 10 usuarios simultaneos
-- `-r 2`: 2 usuarios novos por segundo (ramp-up)
+- `-u 10`: 10 usuários simultâneos
+- `-r 2`: 2 usuários novos por segundo (ramp-up)
 - `-t 60s`: durar 60 segundos
