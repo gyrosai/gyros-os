@@ -160,6 +160,73 @@ Sem essa variavel, o Railway usa o builder automatico (Railpack), que tenta dete
 
 ---
 
+## Migracoes
+
+O projeto tem dois mecanismos de migracao que coexistem:
+
+### 1. Automatica (startup da API)
+
+Quando a API sobe, o `lifespan` executa `run_migrations()` antes de aceitar requisicoes. Esse mecanismo:
+
+1. Cria a tabela `_migrations` se nao existir (controle de estado)
+2. Le todos os arquivos `.sql` de `db/migrations/` em ordem alfabetica
+3. Compara com os nomes ja registrados na tabela `_migrations`
+4. Aplica os pendentes e registra cada um
+
+```python
+# src/whatsapp_langchain/server/main.py (lifespan)
+pool = await get_pool()
+await run_migrations(pool)          # migracoes SQL
+await bootstrap_langgraph_schema()  # tabelas do checkpointer + store
+```
+
+Isso significa que **nao e necessario rodar migracoes manualmente** apos um deploy --- a API cuida disso automaticamente.
+
+### 2. Manual (script standalone)
+
+O script `db/migrate.py` faz a mesma coisa, mas de forma sincrona e independente. Util para:
+
+- Rodar migracoes sem subir a API
+- Debugging local
+- Aplicar migracoes em ambientes sem a API rodando
+
+```bash
+# Local
+python db/migrate.py
+
+# No Railway (usando variaveis do servico api)
+railway run --service api python db/migrate.py
+```
+
+### Arquivos de migracao
+
+```
+db/migrations/
+├── 001_initial.sql                 # Schema da fila de mensagens
+├── 002_media_processing_audit.sql  # Auditoria de midia
+├── 003_auth_schema.sql             # Schema de auth
+└── 004_better_auth_tables.sql      # Tabelas do Better Auth
+```
+
+Para adicionar uma nova migracao, crie um arquivo SQL com o proximo numero sequencial (ex: `005_nova_feature.sql`). A ordem alfabetica dos nomes determina a ordem de aplicacao.
+
+### Idempotencia e replicas
+
+Ambos os mecanismos usam a tabela `_migrations` com constraint `UNIQUE` no nome do arquivo. Se a migracao ja foi aplicada, ela e ignorada silenciosamente.
+
+Com 2 replicas da API, ambas tentam rodar migracoes no startup. O `CREATE TABLE IF NOT EXISTS` e a constraint `UNIQUE` protegem contra duplicatas na maioria dos casos. Em cenarios de alta concorrencia, uma das replicas pode receber um erro de constraint e falhar o startup --- mas o retry do Railway resolve isso automaticamente.
+
+### Bootstrap do LangGraph
+
+Alem das migracoes SQL, o startup da API tambem executa `bootstrap_langgraph_schema()`, que inicializa:
+
+- **Checkpointer** (`AsyncPostgresSaver`) --- tabelas para persistencia de conversas
+- **Store vetorial** (`AsyncPostgresStore`) --- tabelas para memoria semantica (quando `MEMORY_ENABLED=true`)
+
+Essas tabelas sao do LangGraph e nao aparecem em `db/migrations/`. O LangGraph gerencia o schema delas internamente via `.setup()`.
+
+---
+
 ## Variaveis de Ambiente
 
 Abaixo estao todas as variaveis necessarias, organizadas por servico.
@@ -189,7 +256,14 @@ Abaixo estao todas as variaveis necessarias, organizadas por servico.
 | `RATE_LIMIT_PER_HOUR` | `30` | Maximo de mensagens por telefone por hora |
 | `MESSAGE_BUFFER_SECONDS` | `2.0` | Tempo de espera para agrupar mensagens consecutivas |
 | `INTERNAL_SERVICE_TOKEN` | --- | Token para proteger rotas `/api/*` **(shared com Frontend)** |
+| `OPENROUTER_API_KEY` | --- | Chave do OpenRouter (necessaria para bootstrap do LangGraph store — embeddings) |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | URL base do OpenRouter (idem) |
+| `MEMORY_ENABLED` | `true` | Habilitar memoria semantica — controla se o store vetorial e criado no startup |
+| `EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Modelo de embeddings usado no bootstrap do store |
+| `EMBEDDING_DIMS` | `1536` | Dimensoes do vetor de embeddings |
 | `RAILWAY_DOCKERFILE_PATH` | `Dockerfile.api` | Aponta para o Dockerfile da API |
+
+> **Por que a API precisa de variaveis de embeddings?** No startup, a API chama `bootstrap_langgraph_schema()` que inicializa as tabelas do checkpointer e do store vetorial. O store precisa da configuracao de embeddings para criar os indices. Sem essas variaveis, o startup falha quando `MEMORY_ENABLED=true`.
 
 ### Worker
 
@@ -255,7 +329,7 @@ Abaixo estao todas as variaveis necessarias, organizadas por servico.
 10. Configurar watch paths por servico (ver tabela acima)
 11. Configurar 2 replicas na API
 12. Adicionar volume ao servico DB (`/var/lib/postgresql/data`)
-13. Rodar migracoes: `railway run --service api python db/migrate.py`
+13. Verificar migracoes (rodam automaticamente no startup da API --- checar logs por `migration_applying`)
 14. Testar health check: `GET https://api-*.up.railway.app/health`
 15. Testar login no painel e navegacao completa
 16. Testar fluxo completo: mensagem WhatsApp -> fila -> worker -> resposta
