@@ -232,6 +232,51 @@ curl -X POST "https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_a
 # Deve retornar 403 (Missing Twilio signature)
 ```
 
+### Como a validação de assinatura funciona
+
+O `TWILIO_AUTH_TOKEN` **nao e gerado por voce** --- e criado pelo Twilio e aparece no
+[Console → Account Info](https://console.twilio.com/). E um segredo que so voce e o
+Twilio conhecem.
+
+A cada POST no webhook, o Twilio calcula um HMAC-SHA1 usando:
+
+1. O `Auth Token` (segredo compartilhado)
+2. A URL completa do webhook (incluindo query params como `?agent=rhawk_assistant`)
+3. Os parametros POST ordenados alfabeticamente (`Body`, `From`, `MessageSid`, etc.)
+
+O resultado vai no header `X-Twilio-Signature` do request.
+
+```
+Twilio                                      Sua API
+  │                                            │
+  │  POST /webhook/twilio?agent=rhawk_assistant │
+  │  X-Twilio-Signature: "abc123..."           │
+  │  Body=Ola&From=whatsapp:+5511...           │
+  │────────────────────────────────────────────>│
+  │                                            │
+  │                         1. Extrai X-Twilio-Signature do header
+  │                         2. Reconstroi a URL publica via TWILIO_WEBHOOK_URL
+  │                            (necessario porque atras de proxy a URL interna
+  │                             e http://0.0.0.0:8000, nao a URL publica)
+  │                         3. Recalcula o HMAC-SHA1 com:
+  │                            - TWILIO_AUTH_TOKEN (mesmo segredo)
+  │                            - URL reconstruida
+  │                            - parametros POST
+  │                         4. Compara os dois hashes:
+  │                            match → 200 (aceita)
+  │                            nao match → 403 (rejeita)
+```
+
+**Por que e seguro?** Sem o `Auth Token`, ninguem consegue forjar a assinatura. Se alguem
+tentar fazer POST direto no seu webhook (ex: bot malicioso), o HMAC nao vai bater e a API
+retorna 403. O token nunca trafega na rede --- so o hash derivado dele.
+
+**Por que `TWILIO_WEBHOOK_URL` e obrigatorio em producao?** Atras de proxy (Railway,
+cloudflared), o `request.url` interno mostra `http://0.0.0.0:8000/...`, mas o Twilio
+assinou usando a URL publica `https://api-*.up.railway.app/...`. Se a URL nao bater na
+reconstrucao, o HMAC diverge e a validacao falha com 403 --- mesmo sendo um request
+legitimo do Twilio.
+
 ## 7. Variáveis por serviço
 
 | Variável | API | Worker | Obrigatória |
