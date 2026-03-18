@@ -66,6 +66,53 @@ Acesse a Web UI em **http://localhost:8089**.
 | Mensagem normal | 10 | Frases curtas (3-15 palavras) — simula conversa casual |
 | Mensagem longa | 1 | Parágrafos com ~10 frases — testa limites de texto |
 
+## Como testar online (Railway)
+
+Para rodar contra a API no Railway, você precisa preparar o ambiente antes para não enviar mensagens reais nem ser bloqueado pelo rate limit.
+
+### 1. Ajustar variáveis no Railway (antes do teste)
+
+No dashboard do Railway, altere temporariamente:
+
+| Serviço | Variável | Alterar para | Por quê |
+|---------|----------|-------------|---------|
+| **worker** | `TWILIO_OUTBOUND_MODE` | `mock` | Impede envio real de mensagens pelo Twilio (custo + spam) |
+| **worker** | `LLM_RATE_LIMIT_REQUESTS_PER_SECOND` | `5` | Aumenta throughput do LLM para drenar a fila |
+| **worker** | `LLM_RATE_LIMIT_MAX_BURST` | `20` | Permite rajadas maiores ao LLM |
+| **api** | `RATE_LIMIT_PER_HOUR` | `500` | O padrão (30/hora) bloqueia os usuários virtuais rapidamente |
+
+### 2. Rodar o teste
+
+```bash
+cd stress
+source .venv/bin/activate
+
+# Use os valores do serviço API no Railway
+export TWILIO_AUTH_TOKEN=token_do_railway
+export TWILIO_WEBHOOK_URL=https://api-production-xxxx.up.railway.app
+
+locust -f locustfile.py --host https://api-production-xxxx.up.railway.app
+```
+
+Acesse http://localhost:8089 para configurar usuários e iniciar.
+
+> **Atenção:** O campo **Host** na Web UI deve incluir `https://`. Sem o scheme, o Locust falha com `MissingSchema`.
+
+### 3. Reverter variáveis (após o teste)
+
+**Não esqueça!** Reverta no Railway:
+
+| Serviço | Variável | Reverter para |
+|---------|----------|--------------|
+| **worker** | `TWILIO_OUTBOUND_MODE` | `real` |
+| **worker** | `LLM_RATE_LIMIT_REQUESTS_PER_SECOND` | `0.5` |
+| **worker** | `LLM_RATE_LIMIT_MAX_BURST` | `10` |
+| **api** | `RATE_LIMIT_PER_HOUR` | `30` |
+
+> **Se esquecer de reverter `TWILIO_OUTBOUND_MODE`**, o bot para de responder no WhatsApp.
+
+Para documentação completa com resultados reais e análise de escalabilidade, veja [docs/STRESS_TESTING.md](../docs/STRESS_TESTING.md).
+
 ## Modo headless (sem Web UI)
 
 Para rodar sem interface gráfica (útil em CI/CD):

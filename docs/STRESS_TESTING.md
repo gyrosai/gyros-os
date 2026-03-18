@@ -81,15 +81,61 @@ Parâmetros:
 
 ### Contra o Railway (stack real)
 
-Para testar contra o ambiente de produção no Railway:
+Para testar contra o ambiente real no Railway, é necessário preparar o ambiente **antes** de rodar o Locust. Sem essa preparação, o stress test pode enviar centenas de mensagens reais pelo Twilio (custo!) ou ser bloqueado pelo rate limit.
+
+#### 1. Preparar variáveis no Railway
+
+Acesse o dashboard do Railway e ajuste as variáveis abaixo **antes** de iniciar o teste:
+
+| Serviço | Variável | Alterar para | Valor normal | Por quê |
+|---------|----------|-------------|--------------|---------|
+| **worker** | `TWILIO_OUTBOUND_MODE` | `mock` | `real` | Impede que o Worker envie mensagens reais pelo Twilio durante o teste. Sem isso, cada mensagem processada gera uma chamada real ao Twilio (custo + spam). |
+| **worker** | `LLM_RATE_LIMIT_REQUESTS_PER_SECOND` | `5` | `0.5` | Aumenta o throughput do LLM para drenar a fila mais rápido durante o teste. |
+| **worker** | `LLM_RATE_LIMIT_MAX_BURST` | `20` | `10` | Permite rajadas maiores ao LLM, compatível com o cenário BurstUser. |
+| **api** | `RATE_LIMIT_PER_HOUR` | `500` (ou mais) | `30` | O rate limit padrão (30/hora por telefone) bloqueia rapidamente os usuários virtuais do Locust. Aumente para o teste não ser interrompido por 429s. |
+
+> **Importante:** Após o teste, **reverta todas as variáveis** para os valores normais. Em especial, `TWILIO_OUTBOUND_MODE` deve voltar para `real` para que o bot funcione normalmente.
+
+#### 2. Obter as credenciais
+
+Você precisa de dois valores do Railway (disponíveis nas variáveis do serviço **API**):
+
+- `TWILIO_AUTH_TOKEN` — mesmo token configurado na API (necessário para gerar assinaturas HMAC-SHA1 válidas)
+- `TWILIO_WEBHOOK_URL` — URL pública da API (ex: `https://api-production-xxxx.up.railway.app`)
+
+#### 3. Rodar o teste
 
 ```bash
-export TWILIO_AUTH_TOKEN=token_producao
-export TWILIO_WEBHOOK_URL=https://api-domain.up.railway.app
-locust --host https://api-domain.up.railway.app
+cd stress
+source .venv/bin/activate
+
+# Configura com os valores do Railway
+export TWILIO_AUTH_TOKEN=token_do_railway
+export TWILIO_WEBHOOK_URL=https://api-production-xxxx.up.railway.app
+
+# Com Web UI (recomendado para primeira vez)
+# IMPORTANTE: o host DEVE incluir https:// — sem isso o Locust falha com MissingSchema
+locust -f locustfile.py --host https://api-production-xxxx.up.railway.app
+
+# Ou headless
+locust -f locustfile.py \
+  --host https://api-production-xxxx.up.railway.app \
+  -u 5 -r 1 --run-time 3m --headless --only-summary \
+  TwilioWebhookUser BurstUser
 ```
 
-> **Cuidado:** Isso gera tráfego real no seu ambiente de produção. Use com moderação para não estourar cotas de LLM ou rate limits do Twilio.
+#### 4. Após o teste — reverter variáveis
+
+Checklist de reversão no Railway:
+
+| Serviço | Variável | Reverter para |
+|---------|----------|--------------|
+| **worker** | `TWILIO_OUTBOUND_MODE` | `real` |
+| **worker** | `LLM_RATE_LIMIT_REQUESTS_PER_SECOND` | `0.5` |
+| **worker** | `LLM_RATE_LIMIT_MAX_BURST` | `10` |
+| **api** | `RATE_LIMIT_PER_HOUR` | `30` |
+
+> **Cuidado:** Se esquecer de reverter `TWILIO_OUTBOUND_MODE` para `real`, o bot para de responder no WhatsApp (as mensagens são processadas mas as respostas são descartadas).
 
 ## Cenários recomendados
 

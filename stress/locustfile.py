@@ -202,61 +202,6 @@ class TwilioWebhookUser(HttpUser):
         self.send_message(body)
 
 
-# --- Endpoint sincrono para comparacao ---
-
-# O webhook sync processa a mensagem inline e retorna a resposta da IA
-# diretamente no body do HTTP response (sem fila). Isso e util APENAS para
-# comparacao de latencia/throughput — em producao, sempre use o async.
-SYNC_WEBHOOK_PATH = "/webhook/sync?agent=rhawk_assistant"
-
-
-class SyncWebhookUser(HttpUser):
-    """Simula usuario enviando mensagens pelo webhook sincrono.
-
-    APENAS PARA COMPARACAO — nao use o endpoint sync em producao!
-
-    O webhook sync (/webhook/sync) processa a mensagem e espera a resposta
-    da IA antes de retornar o HTTP response. Isso significa que cada request
-    bloqueia ate o agente terminar, resultando em latencias muito maiores.
-
-    Comparando metricas deste cenario com o TwilioWebhookUser (async), voce
-    consegue medir o ganho real que a fila assincrona proporciona:
-    - p50/p95/p99 de latencia
-    - throughput (requests/s) sob mesma carga
-    - taxa de erros sob stress
-
-    Peso 1 (vs peso padrao dos outros): gera pouco trafego para nao
-    sobrecarregar o endpoint sync, que e naturalmente mais lento.
-    """
-
-    # Intervalo maior entre requests: sync e lento, 3 a 10 segundos
-    wait_time = between(3, 10)
-
-    # Peso baixo — gera poucos usuarios sync em relacao aos async
-    weight = 1
-
-    def on_start(self) -> None:
-        """Gera numero de telefone unico para este usuario virtual."""
-        self.phone = f"+55{fake.msisdn()[4:]}"
-
-    @task
-    def send_sync_message(self) -> None:
-        """Envia mensagem pelo endpoint sincrono.
-
-        O endpoint sync espera JSON com {phone, message}, diferente do
-        webhook Twilio que usa form-encoded. Nao precisa de assinatura.
-        """
-        word_count = fake.random_int(min=3, max=15)
-        body = fake.sentence(nb_words=word_count)
-
-        payload = {
-            "phone": self.phone,
-            "message": body,
-        }
-
-        self.client.post(SYNC_WEBHOOK_PATH, json=payload)
-
-
 # --- Cenario de rajada (burst) ---
 
 
