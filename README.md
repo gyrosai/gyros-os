@@ -14,9 +14,9 @@ O objetivo deste repositório é ensinar arquitetura de sistemas em volta do age
 
 ## Fase Atual
 
-**Fase 3 concluída no código.**
+**Fase 4 em andamento neste branch.**
 
-Já implementado no código:
+Base já consolidada da Fase 3:
 - API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
 - fila em PostgreSQL com debounce e retry
 - worker assíncrono para processamento LangGraph
@@ -35,10 +35,15 @@ Já implementado no código:
 - typing indicator via Twilio antes do processamento
 - documentação de sandbox/webhook/túnel com cloudflared
 
-Fase 4 será o fechamento operacional do projeto:
+Já adicionado na Fase 4:
 - frontend/admin panel integrado neste repositório
-- deploy documentado e reprodutível
-- stress testing e hardening final
+- autenticação via Better Auth no mesmo PostgreSQL
+- proteção das rotas administrativas com `INTERNAL_SERVICE_TOKEN`
+- deploy documentado para Railway
+- documentação e artefatos de stress testing
+
+Pendência principal para fechamento operacional:
+- teste e2e real com número Twilio final e smoke final em ambiente publicado
 
 ## Arquitetura
 
@@ -69,6 +74,7 @@ Edite o `.env` e configure pelo menos:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
+TWILIO_OUTBOUND_MODE=mock
 ```
 
 ### 2. Suba o stack local
@@ -77,6 +83,12 @@ OPENROUTER_API_KEY=sk-or-v1-...
 make up
 # sobe: db + api + worker
 ```
+
+Para validar envio real pelo Twilio, mude `TWILIO_OUTBOUND_MODE=real` e
+configure `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`,
+`TWILIO_API_KEY_SECRET` e `TWILIO_FROM_NUMBER`. Nesse modo o worker faz
+fail-fast se alguma credencial outbound estiver ausente. Para assinatura
+de webhook público, veja [Integração Twilio](docs/TWILIO.md).
 
 ### Acesso ao banco (DBeaver)
 
@@ -173,7 +185,8 @@ make test-demo
 - **Fase 1** concluída: base de agentes + middleware de contexto
 - **Fase 2** concluída: API + Worker + PostgreSQL + observabilidade operacional
 - **Fase 3** concluída: integração Twilio + assinatura real + typing + reforço dos testes de debounce
-- **Fase 4** em aberto: frontend/admin panel + deploy + stress + hardening final
+- **Fase 4** em andamento: frontend/admin panel + deploy Railway + stress testing
+- **Fechamento pendente**: teste e2e real com número Twilio final + smoke final
 
 ## Licença
 

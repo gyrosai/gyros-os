@@ -4,12 +4,16 @@ Este projeto ensina agentes por uma perspectiva de **sistemas**.
 O agente é só uma parte da solução. O valor real está no fluxo completo:
 entrada confiável, processamento assíncrono, persistência, recuperação de falhas e inspeção operacional.
 
-## Estado Atual (Fase 2 concluída)
+## Estado Atual (Fase 4 em andamento)
 
 Implementado:
 - API FastAPI com webhook Twilio assíncrono (`POST /webhook/twilio`)
-- fila em PostgreSQL (`message_queue`) com debounce e lease
+- validação criptográfica real de `X-Twilio-Signature` com SDK oficial do Twilio
+- fila em PostgreSQL (`message_queue`) com debounce texto-only, flush antes de mídia e lease
 - worker assíncrono consumindo fila com `FOR UPDATE SKIP LOCKED`
+- cliente outbound Twilio com autenticação via API Key
+- typing indicator best-effort antes da execução do agente
+- envio da resposta para o WhatsApp via Twilio antes de `mark_done`
 - execução de agentes via loader dinâmico
 - checkpointer PostgreSQL (contexto por `thread_id`)
 - store semântico PostgreSQL (memória por `user_id`)
@@ -18,11 +22,15 @@ Implementado:
 - processamento de mídia (imagem e áudio) via OpenRouter
 - retry com backoff progressivo e status de falha
 - APIs administrativas para inspeção
+- frontend/admin panel em Next.js
+- autenticação administrativa com Better Auth no schema `auth`
+- proteção das rotas `/api/*` com `INTERNAL_SERVICE_TOKEN`
+- deploy documentado em Railway
+- stress testing documentado
 
-Fora do escopo da Fase 2:
-- envio de resposta via API Twilio no worker
-- validação criptográfica completa da assinatura Twilio
-- frontend/admin panel neste repositório
+Limitações conhecidas da fase:
+- `NumMedia > 1` no mesmo webhook continua fora do escopo
+- fechamento e2e final ainda depende de número real Twilio + smoke final
 
 ## Visão de Componentes
 
@@ -30,6 +38,11 @@ Fora do escopo da Fase 2:
 
 ```text
 [Twilio/WhatsApp]
+      |
+      v
+[Frontend Next.js]
+  - Better Auth
+  - server-side fetch para /api/*
       |
       v
 [API FastAPI]
@@ -48,8 +61,14 @@ Fora do escopo da Fase 2:
 [Worker]
   - claim com lease
   - processa mídia
+  - envia typing
   - invoca agente
+  - envia resposta via Twilio
   - marca done/failed
+
+[PostgreSQL auth]
+  - schema auth
+  - user/session/account
 ```
 
 ## Fronteiras e Contratos
@@ -58,13 +77,16 @@ Fora do escopo da Fase 2:
 
 Responsabilidades:
 - aceitar webhook Twilio
+- validar assinatura quando habilitada
 - responder rápido com TwiML vazio
 - não executar agente inline
 - enfileirar payload normalizado
+- proteger `/api/*` via token interno compartilhado com o frontend
 
 Contratos relevantes:
 - `agent` via query string
 - payload form-encoded Twilio (`From`, `To`, `Body`, `NumMedia`, etc)
+- identidade inbound principal em `From`, com fallback para `WaId`
 - `thread_id = "{phone}:{agent}"`
 
 ### Worker (`src/whatsapp_langchain/worker/`)
@@ -72,13 +94,23 @@ Contratos relevantes:
 Responsabilidades:
 - fazer polling da fila
 - processar mídia se existir
+- enviar typing antes do agente (best-effort)
 - carregar agente com checkpointer/store compartilhados (abertos no boot)
 - invocar grafo com `thread_id` e `user_id`
-- persistir sucesso/falha
+- enviar resposta ao usuário via Twilio
+- persistir sucesso/falha, com `mark_done` só após envio confirmado
 
 Contrato de execução do agente:
 - `thread_id`: memória de conversa (checkpointer)
 - `user_id`: memória cross-thread (store semântico), derivado do telefone do webhook Twilio
+
+### Frontend (`frontend/`)
+
+Responsabilidades:
+- autenticar administradores com Better Auth
+- consumir rotas administrativas apenas server-side
+- usar `INTERNAL_API_URL` + `INTERNAL_SERVICE_TOKEN` para falar com a API
+- manter tabelas de auth separadas no schema `auth`
 
 ### Shared (`src/whatsapp_langchain/shared/`)
 
@@ -120,16 +152,18 @@ Tabela agregada para consultas administrativas.
 
 1. Usuário envia mensagem no WhatsApp.
 2. Twilio faz `POST /webhook/twilio?agent=<agent_id>`.
-3. API valida agente, aplica rate limit e chama `enqueue_or_buffer`.
-4. Debounce concatena mensagens rápidas do mesmo usuário/agente.
+3. API valida agente, assinatura (quando habilitada), aplica rate limit e chama `enqueue_or_buffer`.
+4. Debounce concatena textos rápidos; mídia entra imediata e faz flush de texto pendente.
 5. Worker faz `claim_next` com lease.
-6. Worker monta `HumanMessage` (texto, imagem ou transcrição de áudio).
-7. Worker carrega agente com:
+6. Worker pré-processa a entrada e monta `HumanMessage` (texto, imagem ou transcrição de áudio).
+7. Worker tenta enviar typing via Twilio (best-effort).
+8. Worker carrega agente com:
    - `AsyncPostgresSaver` (checkpointer) aberto no startup do worker
    - `AsyncPostgresStore` + embeddings (quando memória habilitada), também aberto no startup
-8. Agente executa e retorna resposta.
-9. Worker persiste resultado (`mark_done`) e atualiza `conversations`.
-10. Em erro, `mark_failed` decide retry com backoff ou falha final.
+9. Agente executa e retorna resposta.
+10. Worker envia a resposta outbound via Twilio.
+11. Só depois o worker persiste resultado (`mark_done`) e atualiza `conversations`.
+12. Em erro de processamento ou envio, `mark_failed` decide retry com backoff ou falha final.
 
 ## Contexto e Memória
 
@@ -153,7 +187,13 @@ Isso separa duas necessidades diferentes:
 
 ### Debounce
 
-Agrupa mensagens enviadas em sequência curta (`MESSAGE_BUFFER_SECONDS`) para reduzir custo e ruído.
+Agrupa mensagens de texto enviadas em sequência curta (`MESSAGE_BUFFER_SECONDS`) para reduzir custo e ruído.
+
+Na Fase 3:
+- texto faz debounce
+- mídia não faz debounce
+- antes de inserir mídia, textos pendentes do mesmo `phone+agent` são flushed
+- concorrência do mesmo remetente/agente é serializada com advisory lock
 
 ### Retry com backoff
 
@@ -189,7 +229,7 @@ Logs estruturados com `structlog` em todos os componentes.
 
 ## Próximos passos de arquitetura
 
-- integrar envio de saída via Twilio no worker
-- validação real da assinatura Twilio com SDK oficial
-- endurecimento para multi-instância (rate limit distribuído)
-- camada de frontend/admin externa a este pacote
+- fechar o teste e2e real com número Twilio final
+- endurecer operação multi-instância (rate limit distribuído)
+- revisar proteção de admin/CORS para produção
+- suporte explícito a cenários fora do escopo atual, como `NumMedia > 1`

@@ -278,17 +278,15 @@ Abaixo estao todas as variaveis necessarias, organizadas por servico.
 | `OPENROUTER_MODEL` | --- | Modelo principal para o agente |
 | `OPENROUTER_MIDIA_MODEL` | --- | Modelo para processamento de midia |
 | `TWILIO_ACCOUNT_SID` | --- | Account SID do Twilio |
-| `TWILIO_AUTH_TOKEN` | --- | Token de autenticacao do Twilio |
-| `TWILIO_API_KEY_SID` | --- | API Key SID para envio de mensagens |
-| `TWILIO_API_KEY_SECRET` | --- | API Key Secret para envio de mensagens |
+| `TWILIO_API_KEY_SID` | --- | API Key SID para envio de mensagens e download de midia |
+| `TWILIO_API_KEY_SECRET` | --- | API Key Secret para envio de mensagens e download de midia |
 | `TWILIO_FROM_NUMBER` | `whatsapp:+14155238886` | Numero do WhatsApp remetente |
-| `TWILIO_OUTBOUND_MODE` | `real` | Em producao, usar Twilio real |
+| `TWILIO_OUTBOUND_MODE` | `real` | Em producao, manter envio Twilio em modo real |
 | `POLL_INTERVAL_SECONDS` | `1.0` | Intervalo de polling na fila |
 | `LEASE_SECONDS` | `60` | Tempo maximo de processamento antes de retry |
 | `MAX_ATTEMPTS` | `3` | Numero maximo de tentativas por mensagem |
 | `MEDIA_IMAGE_ENABLED` | `true` | Habilitar processamento de imagens |
 | `MEDIA_AUDIO_ENABLED` | `true` | Habilitar processamento de audio |
-| `TYPING_INDICATOR_ENABLED` | `true` | Simular indicador de digitacao no WhatsApp |
 | `LLM_RATE_LIMIT_REQUESTS_PER_SECOND` | `0.5` | Limite de requisicoes por segundo ao LLM |
 | `LLM_RATE_LIMIT_MAX_BURST` | `10` | Maximo de requisicoes em rajada ao LLM |
 | `CONTEXT_STRATEGY` | `summarize` | Estrategia de contexto do middleware |
@@ -301,6 +299,10 @@ Abaixo estao todas as variaveis necessarias, organizadas por servico.
 | `EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Modelo de embeddings |
 | `EMBEDDING_DIMS` | `1536` | Dimensoes do vetor de embeddings |
 | `RAILWAY_DOCKERFILE_PATH` | `Dockerfile.worker` | Aponta para o Dockerfile do Worker |
+
+> O `TWILIO_AUTH_TOKEN` fica somente no servico `api`, onde a assinatura
+> inbound do webhook e validada. O worker usa `TWILIO_ACCOUNT_SID`,
+> `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` e `TWILIO_FROM_NUMBER`.
 
 ### Frontend
 
