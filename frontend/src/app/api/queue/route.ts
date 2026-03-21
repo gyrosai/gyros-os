@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getQueue } from "@/lib/api";
+import { ensureFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 /**
  * Route Handler que faz proxy para a API interna de fila.
@@ -13,6 +14,8 @@ import { getQueue } from "@/lib/api";
  * sem isso, qualquer cliente sem login conseguiria acessar a fila.
  */
 export async function GET() {
+  ensureFrontendRuntimeConfig();
+
   // Valida sessao real (banco), nao apenas cookie
   const session = await auth.api.getSession({
     headers: await headers(),

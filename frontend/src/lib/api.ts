@@ -11,8 +11,6 @@
 import "server-only";
 import { ensureFrontendRuntimeConfig } from "@/lib/runtime-config";
 
-ensureFrontendRuntimeConfig();
-
 // --- Tipos de resposta da API ---
 
 export interface Chat {
@@ -94,6 +92,8 @@ const SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || "";
 // --- Função base de fetch ---
 
 async function apiFetch<T>(path: string): Promise<T> {
+  ensureFrontendRuntimeConfig();
+
   const url = `${API_URL}${path}`;
 
   const response = await fetch(url, {

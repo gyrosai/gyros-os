@@ -6,7 +6,10 @@ import {
   DEFAULT_ADMIN_NAME,
   DEFAULT_ADMIN_PASSWORD,
 } from "@/lib/admin-defaults";
-import { canAutoBootstrapAdmin } from "@/lib/runtime-config";
+import {
+  canAutoBootstrapAdmin,
+  ensureFrontendRuntimeConfig,
+} from "@/lib/runtime-config";
 
 function isAlreadyExistsError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -21,6 +24,8 @@ export async function ensureDefaultAdmin(): Promise<boolean> {
   if (!canAutoBootstrapAdmin()) {
     return false;
   }
+
+  ensureFrontendRuntimeConfig();
 
   const tableResult = await authPool.query<{ table_name: string | null }>(
     `SELECT to_regclass('auth."user"') AS table_name`

@@ -9,9 +9,6 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { Pool } from "pg";
-import { ensureFrontendRuntimeConfig } from "@/lib/runtime-config";
-
-ensureFrontendRuntimeConfig();
 
 export const authPool = new Pool({
   connectionString: process.env.DATABASE_URL,

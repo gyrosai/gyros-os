@@ -11,6 +11,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { ensureFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 /**
  * Retorna a sessao validada ou redireciona para /login.
@@ -20,6 +21,8 @@ import { auth } from "@/lib/auth";
  * nao apenas checagem de cookie.
  */
 export async function requireSession() {
+  ensureFrontendRuntimeConfig();
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
