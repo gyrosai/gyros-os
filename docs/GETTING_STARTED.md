@@ -32,6 +32,11 @@ TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_FROM_NUMBER=whatsapp:+14155238886
+
+# Inbound (obrigatório apenas para validação real de assinatura)
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+VALIDATE_TWILIO_SIGNATURE=false
+TWILIO_WEBHOOK_URL=
 ```
 
 ## 2. Trilha A: desenvolvimento de agente no Studio
@@ -48,7 +53,7 @@ Arquivos centrais do agente:
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/prompts.py`
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py`
 
-## 3. Trilha B: stack completo da Fase 2
+## 3. Trilha B: stack completo da Fase 3
 
 ### Subir serviços
 
@@ -60,6 +65,9 @@ Isso sobe:
 - `db` (PostgreSQL + pgvector)
 - `api` (FastAPI)
 - `worker` (consumidor da fila)
+
+> O worker faz fail-fast se as credenciais outbound do Twilio estiverem ausentes.
+> Para webhook público, sandbox e cloudflared, siga também [Integração Twilio](TWILIO.md).
 
 ### Reset completo do ambiente Docker
 
