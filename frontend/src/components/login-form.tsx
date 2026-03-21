@@ -16,12 +16,14 @@ interface LoginFormProps {
   defaultEmail?: string;
   defaultPassword?: string;
   showBootstrapHint?: boolean;
+  helperMessage?: string;
 }
 
 export function LoginForm({
   defaultEmail = "",
   defaultPassword = "",
   showBootstrapHint = false,
+  helperMessage,
 }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState(defaultEmail);
@@ -57,6 +59,11 @@ export function LoginForm({
           <CardTitle className="text-center text-xl">
             WhatsApp Admin
           </CardTitle>
+          {helperMessage && (
+            <CardDescription className="text-center">
+              {helperMessage}
+            </CardDescription>
+          )}
           {showBootstrapHint && (
             <CardDescription className="text-center">
               Usuario inicial criado automaticamente. Entre e troque a senha em

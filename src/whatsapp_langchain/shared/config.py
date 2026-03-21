@@ -9,12 +9,14 @@ Uso:
     print(settings.database_url)
     print(settings.rate_limit_per_hour)
 
-Todas as configurações têm defaults sensatos para desenvolvimento local.
-Em produção, configure via variáveis de ambiente ou .env.
+A maior parte das configurações tem defaults sensatos para desenvolvimento local.
+Segredos compartilhados do painel/admin devem ser preenchidos explicitamente.
 """
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIN_PRODUCTION_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -95,8 +97,8 @@ class Settings(BaseSettings):
 
     # --- Internal Service Token ---
     # Token compartilhado entre frontend e API para proteger rotas administrativas.
-    # Em produção, use um token forte gerado aleatoriamente.
-    internal_service_token: str = "dev-token-change-in-production"
+    # Preencha também em desenvolvimento; em produção, use um token forte.
+    internal_service_token: str = ""
 
     # --- Semantic Memory (LangGraph Store) ---
     memory_enabled: bool = True
@@ -113,6 +115,25 @@ class Settings(BaseSettings):
             return mode
 
         return "real" if self.environment == "production" else "mock"
+
+    @property
+    def is_production(self) -> bool:
+        """Indica se a aplicacao esta rodando em modo production."""
+        return self.environment.strip().lower() == "production"
+
+    def validate_runtime_settings(self) -> None:
+        """Valida configuração mínima e hardening por ambiente."""
+        token = self.internal_service_token.strip()
+        if not token:
+            raise ValueError(
+                "INTERNAL_SERVICE_TOKEN deve ser preenchido antes de subir a API."
+            )
+
+        if self.is_production and len(token) < MIN_PRODUCTION_SECRET_LENGTH:
+            raise ValueError(
+                "Production requer valor forte para INTERNAL_SERVICE_TOKEN. "
+                "Atualize as env vars antes do deploy."
+            )
 
 
 # Singleton — importar de qualquer lugar do projeto

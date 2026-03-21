@@ -74,8 +74,13 @@ Edite o `.env` e configure pelo menos:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
+INTERNAL_SERVICE_TOKEN=seu-token-local
+BETTER_AUTH_SECRET=seu-secret-local
 TWILIO_OUTBOUND_MODE=mock
 ```
+
+`INTERNAL_SERVICE_TOKEN` e `BETTER_AUTH_SECRET` precisam estar preenchidos
+mesmo em desenvolvimento local para o painel administrativo funcionar.
 
 ### 2. Suba o stack local
 

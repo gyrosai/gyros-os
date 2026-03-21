@@ -26,8 +26,16 @@ Edite `.env` e configure no mínimo:
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MIDIA_MODEL=google/gemini-2.5-flash-lite
+INTERNAL_SERVICE_TOKEN=seu-token-local
+BETTER_AUTH_SECRET=seu-secret-local
+BETTER_AUTH_URL=http://localhost:3000
+INTERNAL_API_URL=http://localhost:8000
 TWILIO_OUTBOUND_MODE=mock
 ```
+
+Para desenvolvimento local, basta preencher `INTERNAL_SERVICE_TOKEN` e
+`BETTER_AUTH_SECRET` com valores não-vazios. Em production, ambos devem ter
+32+ caracteres.
 
 Se quiser validar envio real pelo Twilio no ambiente local:
 
@@ -121,9 +129,9 @@ curl -X POST "http://localhost:8000/webhook/twilio?agent=rhawk_assistant" \
 Depois consulte:
 
 ```bash
-curl -H "Authorization: Bearer dev-token-change-in-production" http://localhost:8000/api/metrics
-curl -H "Authorization: Bearer dev-token-change-in-production" http://localhost:8000/api/chats
-curl -H "Authorization: Bearer dev-token-change-in-production" http://localhost:8000/api/chats/+5511999999999
+curl -H "Authorization: Bearer <seu_INTERNAL_SERVICE_TOKEN>" http://localhost:8000/api/metrics
+curl -H "Authorization: Bearer <seu_INTERNAL_SERVICE_TOKEN>" http://localhost:8000/api/chats
+curl -H "Authorization: Bearer <seu_INTERNAL_SERVICE_TOKEN>" http://localhost:8000/api/chats/+5511999999999
 ```
 
 ### 4.2.1 Teste manual no Swagger (`/docs`)

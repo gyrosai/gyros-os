@@ -9,6 +9,9 @@
  * INTERNAL_SERVICE_TOKEN. Isso é separado da autenticação do usuário (Better Auth).
  */
 import "server-only";
+import { ensureFrontendRuntimeConfig } from "@/lib/runtime-config";
+
+ensureFrontendRuntimeConfig();
 
 // --- Tipos de resposta da API ---
 

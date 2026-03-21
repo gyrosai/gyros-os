@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log_level=settings.log_level,
         json_output=settings.log_json,
     )
+    settings.validate_runtime_settings()
     logger.info("server_starting", port=settings.port)
 
     pool = await get_pool()

@@ -17,7 +17,7 @@ import psycopg
 
 DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/whatsapp_langchain"
 API_BASE_URL = "http://localhost:8000"
-DEFAULT_INTERNAL_SERVICE_TOKEN = "dev-token-change-in-production"
+TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
 
 
 def get_db_url() -> str:
@@ -27,7 +27,7 @@ def get_db_url() -> str:
 
 def get_admin_api_headers() -> dict[str, str]:
     """Retorna headers para rotas administrativas protegidas."""
-    token = os.getenv("INTERNAL_SERVICE_TOKEN", DEFAULT_INTERNAL_SERVICE_TOKEN)
+    token = os.getenv("INTERNAL_SERVICE_TOKEN", TEST_INTERNAL_SERVICE_TOKEN)
     return {"Authorization": f"Bearer {token}"}
 
 

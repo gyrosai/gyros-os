@@ -28,6 +28,7 @@ import {
   DEFAULT_ADMIN_NAME,
   DEFAULT_ADMIN_PASSWORD,
 } from "../src/lib/admin-defaults";
+import { isProductionEnvironment } from "../src/lib/runtime-config";
 
 const ADMIN_EMAIL: string = process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
 const ADMIN_PASSWORD: string =
@@ -36,6 +37,17 @@ const ADMIN_NAME: string = process.env.ADMIN_NAME || DEFAULT_ADMIN_NAME;
 
 async function main() {
   console.log(`Criando admin: ${ADMIN_EMAIL}`);
+
+  if (
+    isProductionEnvironment() &&
+    (ADMIN_EMAIL === DEFAULT_ADMIN_EMAIL ||
+      ADMIN_PASSWORD === DEFAULT_ADMIN_PASSWORD)
+  ) {
+    console.error(
+      "Em production, defina ADMIN_EMAIL e ADMIN_PASSWORD explicitos antes de rodar o seed."
+    );
+    process.exit(1);
+  }
 
   if (
     ADMIN_EMAIL === DEFAULT_ADMIN_EMAIL &&

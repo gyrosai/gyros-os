@@ -1,23 +1,23 @@
 # Deploy
 
 Este guia resume o deploy da fase atual do projeto e aponta para os
-documentos detalhados de operacao.
+documentos detalhados de operação.
 
 ## Estado atual
 
-Na Fase 4, o projeto ja cobre:
-- API FastAPI publica para `POST /webhook/twilio`
-- Worker assincrono com envio outbound via Twilio
+Na Fase 4, o projeto já cobre:
+- API FastAPI pública para `POST /webhook/twilio`
+- Worker assíncrono com envio outbound via Twilio
 - Frontend/admin panel em Next.js com Better Auth
 - PostgreSQL com pgvector
-- deploy de referencia em Railway
+- deploy de referência em Railway
 - stress testing e leitura de gargalos
 
 ## Topologia alvo
 
 ```text
-Internet -> Frontend (publico)
-Internet -> API (publica para /health e /webhook/twilio)
+Internet -> Frontend (público)
+Internet -> API (pública para /health e /webhook/twilio)
 Twilio -> API (webhook inbound)
 Frontend -> API (server-side via INTERNAL_API_URL + INTERNAL_SERVICE_TOKEN)
 API -> PostgreSQL
@@ -28,11 +28,11 @@ Worker -> Twilio (outbound)
 
 ## Guias detalhados
 
-- [Railway](RAILWAY.md): provisionamento de servicos, rede interna, variaveis e watch paths
+- [Railway](RAILWAY.md): provisionamento de serviços, rede interna, variáveis e watch paths
 - [Twilio](TWILIO.md): credenciais, webhook, assinatura, sandbox e cloudflared
-- [Stress Testing](STRESS_TESTING.md): preparo do ambiente e leitura de throughput/latencia
+- [Stress Testing](STRESS_TESTING.md): preparo do ambiente e leitura de throughput/latência
 
-## Variaveis essenciais por servico
+## Variáveis essenciais por serviço
 
 ### API
 
@@ -45,7 +45,7 @@ Worker -> Twilio (outbound)
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_WEBHOOK_URL`
 - `INTERNAL_SERVICE_TOKEN`
-- `MEMORY_ENABLED`, `EMBEDDING_MODEL`, `EMBEDDING_DIMS` quando memoria semantica estiver ativa
+- `MEMORY_ENABLED`, `EMBEDDING_MODEL`, `EMBEDDING_DIMS` quando memória semântica estiver ativa
 
 ### Worker
 
@@ -67,6 +67,7 @@ Worker -> Twilio (outbound)
 
 ### Frontend
 
+- `ENVIRONMENT=production`
 - `DATABASE_URL`
 - `INTERNAL_API_URL`
 - `INTERNAL_SERVICE_TOKEN`
@@ -76,23 +77,26 @@ Worker -> Twilio (outbound)
 ## Fluxo recomendado de publicacao
 
 1. Provisionar `db`, `api`, `worker` e `frontend`.
-2. Configurar as variaveis de ambiente por servico.
-3. Publicar dominio da API e do Frontend.
+2. Configurar as variáveis de ambiente por serviço.
+3. Publicar domínio da API e do Frontend.
 4. Configurar o webhook do Twilio apontando para `https://<api>/webhook/twilio?agent=rhawk_assistant`.
-5. Fazer o bootstrap do primeiro admin e trocar a senha inicial no painel.
+5. Criar o primeiro admin manualmente com credenciais fortes, validar o login no painel e rotacionar a senha se necessário.
 6. Executar smoke tests de API, painel e mensagem real no WhatsApp.
 
-## Checklist de verificacao
+## Checklist de verificação
 
 - `GET /health` responde `200`
 - `/login` renderiza corretamente no Frontend
-- request com assinatura invalida retorna `403` quando a validacao esta habilitada
+- request com assinatura inválida retorna `403` quando a validação está habilitada
 - `message_queue` recebe mensagens e o worker faz `queued -> processing -> done|failed`
 - a resposta chega ao WhatsApp antes de `mark_done`
 - o Frontend acessa `/api/*` apenas via `INTERNAL_SERVICE_TOKEN`
+- não existe bootstrap automático de admin previsível em production
 
 ## Notas operacionais
 
 - Em `ENVIRONMENT=production`, o endpoint `/webhook/sync` fica desabilitado.
-- `TWILIO_OUTBOUND_MODE=mock` e util para desenvolvimento local e stress test sem custo real.
-- O guia detalhado de Railway fica em [RAILWAY.md](RAILWAY.md); este arquivo e a visao geral.
+- `TWILIO_OUTBOUND_MODE=mock` e útil para desenvolvimento local e stress test sem custo real.
+- Em qualquer ambiente, o painel falha cedo se `INTERNAL_SERVICE_TOKEN` ou `BETTER_AUTH_SECRET` estiverem ausentes; em production, também exige valores fortes.
+- O primeiro admin deve ser criado via `frontend/scripts/seed-admin.ts` com `ADMIN_EMAIL` e `ADMIN_PASSWORD` explícitos.
+- O guia detalhado de Railway fica em [RAILWAY.md](RAILWAY.md); este arquivo é a visão geral.
