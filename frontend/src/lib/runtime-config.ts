@@ -5,7 +5,15 @@ function normalize(value: string | undefined): string {
 }
 
 export function isProductionEnvironment(): boolean {
-  return normalize(process.env.ENVIRONMENT).toLowerCase() === "production";
+  const candidates = [
+    process.env.ENVIRONMENT,
+    process.env.RAILWAY_ENVIRONMENT,
+    process.env.RAILWAY_ENVIRONMENT_NAME,
+  ];
+
+  return candidates.some(
+    (value) => normalize(value).toLowerCase() === "production"
+  );
 }
 
 function isMissing(value: string | undefined): boolean {
