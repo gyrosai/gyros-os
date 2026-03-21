@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getChatMessages } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Mapa de variantes do Badge para cada status de mensagem.
  *

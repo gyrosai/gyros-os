@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMetrics } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Página principal do painel administrativo.
  *

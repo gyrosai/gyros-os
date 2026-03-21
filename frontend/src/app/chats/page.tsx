@@ -12,6 +12,8 @@ import {
 import { getChats } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Formata uma data ISO como string legível em português.
  *

@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { getAgents } from "@/lib/api";
 import { requireSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Página de listagem de agentes configurados.
  *

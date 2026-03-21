@@ -2,6 +2,8 @@ import { ShieldCheck } from "lucide-react";
 import { ChangePasswordForm } from "@/components/change-password-form";
 import { requireSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage() {
   const session = await requireSession();
 
