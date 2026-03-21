@@ -69,6 +69,12 @@ Edite o `.env` e configure pelo menos:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
+
+# Twilio outbound (obrigatório para o worker na Fase 3)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_FROM_NUMBER=whatsapp:+14155238886
 ```
 
 ### 2. Suba o stack local
@@ -77,6 +83,10 @@ OPENROUTER_API_KEY=sk-or-v1-...
 make up
 # sobe: db + api + worker
 ```
+
+Na Fase 3, o worker faz fail-fast se as credenciais outbound do Twilio
+estiverem ausentes. Para validação de assinatura via webhook público,
+veja [Integração Twilio](docs/TWILIO.md).
 
 ### Acesso ao banco (DBeaver)
 
