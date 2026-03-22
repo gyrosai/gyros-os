@@ -8,11 +8,14 @@ Responsável por:
 5. Enviar resposta ao usuário via Twilio
 6. Salvar no banco (mark_done somente após envio confirmado)
 
-Decisões arquiteturais (Fase 3):
-- Twilio é obrigatório — não existe caminho sem envio confirmado.
-- Typing é tentado em 100% das execuções normais (best-effort).
+Decisões arquiteturais:
+- Em production, o envio outbound usa Twilio real.
+- Em desenvolvimento, o worker pode operar em modo mock para validar
+  a via assincrona sem consumir cota externa.
+- Typing e tentado quando o SID inbound tem formato valido (best-effort).
 - Falha de typing NÃO interrompe o processamento.
-- mark_done ocorre somente após envio Twilio bem-sucedido.
+- mark_done ocorre somente após envio outbound bem-sucedido
+  (real ou simulado, dependendo do modo do worker).
 - Falha de envio entra no fluxo de retry (mark_failed).
 
 Uso:
@@ -62,7 +65,7 @@ async def process_message(
     do agente com checkpointer PostgreSQL, executa, envia a resposta
     via Twilio e salva no banco.
 
-    Twilio é obrigatório — nenhum mark_done ocorre sem envio confirmado.
+    Nenhum mark_done ocorre sem envio outbound confirmado.
 
     Args:
         message: Mensagem a processar (já reservada via claim).
@@ -152,7 +155,7 @@ async def process_message(
         # 4. Extrair resposta
         response_text = result["messages"][-1].content
 
-        # 5. Enviar resposta via Twilio (obrigatório antes de mark_done)
+        # 5. Enviar resposta outbound antes de mark_done
         await twilio.send_message(message.phone_number, response_text)
 
         # 6. mark_done somente após envio confirmado

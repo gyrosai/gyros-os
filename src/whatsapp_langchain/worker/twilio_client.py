@@ -4,6 +4,9 @@ Usa httpx para chamadas não-bloqueantes à API REST do Twilio (Messages API).
 Autenticação outbound via API Key (api_key_sid + api_key_secret), separada
 da autenticação inbound (auth_token para validação de assinatura no webhook).
 
+Em desenvolvimento local, o cliente tambem suporta `delivery_mode="mock"`,
+que simula o envio outbound sem consumir cota do Twilio.
+
 Uso:
     from whatsapp_langchain.worker.twilio_client import TwilioClient
 
@@ -16,6 +19,9 @@ Uso:
     sid = await client.send_message(to="+5511...", body="Olá!")
     await client.send_typing(to="+5511...")
 """
+
+import re
+import uuid
 
 import httpx
 import structlog
@@ -30,6 +36,7 @@ TWILIO_MESSAGES_URL = (
 # URL do endpoint de typing indicator (Public Beta, out/2025)
 # Marca mensagem como lida + exibe "digitando..." por até 25s
 TWILIO_TYPING_URL = "https://messaging.twilio.com/v2/Indicators/Typing.json"
+TWILIO_MESSAGE_SID_RE = re.compile(r"^[A-Z]{2}[0-9a-fA-F]{32}$")
 
 
 class TwilioSendError(Exception):
@@ -69,24 +76,35 @@ class TwilioClient:
         api_key_sid: str,
         api_key_secret: str,
         from_number: str,
+        *,
+        delivery_mode: str = "real",
     ):
-        if not account_sid:
-            raise ValueError("account_sid não pode ser vazio")
-        if not api_key_sid:
-            raise ValueError("api_key_sid não pode ser vazio")
-        if not api_key_secret:
-            raise ValueError("api_key_secret não pode ser vazio")
-        if not from_number:
-            raise ValueError("from_number não pode ser vazio")
-        if not from_number.startswith("whatsapp:+"):
+        if delivery_mode not in {"real", "mock"}:
             raise ValueError(
-                f"from_number deve iniciar com 'whatsapp:+', recebido: {from_number}"
+                "delivery_mode deve ser 'real' ou 'mock', "
+                f"recebido: {delivery_mode}"
             )
+
+        if delivery_mode == "real":
+            if not account_sid:
+                raise ValueError("account_sid não pode ser vazio")
+            if not api_key_sid:
+                raise ValueError("api_key_sid não pode ser vazio")
+            if not api_key_secret:
+                raise ValueError("api_key_secret não pode ser vazio")
+            if not from_number:
+                raise ValueError("from_number não pode ser vazio")
+            if not from_number.startswith("whatsapp:+"):
+                raise ValueError(
+                    "from_number deve iniciar com 'whatsapp:+', "
+                    f"recebido: {from_number}"
+                )
 
         self.account_sid = account_sid
         self.api_key_sid = api_key_sid
         self.api_key_secret = api_key_secret
         self.from_number = from_number
+        self.delivery_mode = delivery_mode
         self.messages_url = TWILIO_MESSAGES_URL.format(account_sid=account_sid)
 
     async def send_message(self, to: str, body: str) -> str:
@@ -105,6 +123,16 @@ class TwilioClient:
         Raises:
             TwilioSendError: Se a API retornar erro (4xx/5xx).
         """
+        if self.delivery_mode == "mock":
+            message_sid = f"SM{uuid.uuid4().hex}"
+            logger.info(
+                "twilio_message_mocked",
+                to=to,
+                sid=message_sid,
+                body_length=len(body),
+            )
+            return message_sid
+
         async with httpx.AsyncClient() as http:
             response = await http.post(
                 self.messages_url,
@@ -155,8 +183,20 @@ class TwilioClient:
         Returns:
             True se o indicador foi enviado, False caso contrário.
         """
+        if self.delivery_mode == "mock":
+            logger.debug("twilio_typing_skipped", to=to, reason="mock_mode")
+            return False
+
         if not message_sid:
             logger.debug("twilio_typing_skipped", to=to, reason="no message_sid")
+            return False
+        if not TWILIO_MESSAGE_SID_RE.match(message_sid):
+            logger.debug(
+                "twilio_typing_skipped",
+                to=to,
+                message_sid=message_sid,
+                reason="invalid_message_sid_format",
+            )
             return False
 
         try:
@@ -178,6 +218,7 @@ class TwilioClient:
             logger.warning(
                 "twilio_typing_failed",
                 to=to,
+                message_sid=message_sid,
                 status_code=response.status_code,
                 detail=response.text[:200],
             )

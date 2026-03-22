@@ -11,6 +11,7 @@ Uso:
         ...
 """
 
+import hmac
 import time
 from collections import defaultdict
 
@@ -93,6 +94,40 @@ async def validate_twilio_signature(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Invalid Twilio signature")
 
     logger.debug("twilio_signature_valid")
+
+
+async def verify_service_token(request: Request) -> None:
+    """Verifica o token de serviço interno no header Authorization.
+
+    Rotas administrativas (/api/*) são protegidas por um token compartilhado
+    entre o frontend (Next.js) e a API. Não é autenticação de usuário —
+    apenas garante que só serviços autorizados acessem endpoints admin.
+
+    O header deve ser: Authorization: Bearer <token>
+
+    Raises:
+        HTTPException 401: Se o token está ausente ou inválido.
+    """
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("service_token_missing", path=str(request.url.path))
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or malformed Authorization header",
+        )
+
+    token = auth_header.removeprefix("Bearer ").strip()
+
+    # Comparacao timing-safe para evitar timing attacks na verificacao do token
+    if not hmac.compare_digest(token, settings.internal_service_token):
+        logger.warning("service_token_invalid", path=str(request.url.path))
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid service token",
+        )
+
+    logger.debug("service_token_valid", path=str(request.url.path))
 
 
 async def check_rate_limit(phone_number: str) -> None:

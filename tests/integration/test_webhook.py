@@ -13,12 +13,16 @@ from whatsapp_langchain import __version__
 from whatsapp_langchain.server.main import app
 
 client = TestClient(app, raise_server_exceptions=False)
+TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
 
 
 @pytest.fixture(autouse=True)
-def mock_db():
+def mock_db(monkeypatch):
     """Mock do banco de dados para testes sem PostgreSQL."""
+    from whatsapp_langchain.shared.config import settings
+
     mock_pool = AsyncMock()
+    monkeypatch.setattr(settings, "internal_service_token", TEST_INTERNAL_SERVICE_TOKEN)
 
     with (
         patch(
@@ -152,10 +156,17 @@ class TestWebhookTwilio:
 class TestAdminRoutes:
     """Testes das rotas administrativas."""
 
+    auth_headers = {"Authorization": f"Bearer {TEST_INTERNAL_SERVICE_TOKEN}"}
+
     def test_list_agents(self):
         """Deve listar agentes disponíveis."""
-        response = client.get("/api/agents")
+        response = client.get("/api/agents", headers=self.auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "agents" in data
         assert "rhawk_assistant" in data["agents"]
+
+    def test_list_agents_requires_token(self):
+        """Deve rejeitar requisição sem token de serviço."""
+        response = client.get("/api/agents")
+        assert response.status_code == 401

@@ -10,7 +10,7 @@ Este guia tem duas trilhas:
 - `uv` (gerenciador de pacotes)
 - Docker + Docker Compose
 - conta OpenRouter (API key)
-- conta Twilio com sandbox WhatsApp (obrigatória para o Worker — veja [Integração Twilio](TWILIO.md), seções 1.1 e 1.2 para criação de conta/credenciais)
+- conta Twilio com sandbox WhatsApp (obrigatória apenas para envio real; o compose local pode rodar em modo mock)
 
 ## 1. Setup local
 
@@ -26,8 +26,21 @@ Edite `.env` e configure no mínimo:
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MIDIA_MODEL=google/gemini-2.5-flash-lite
+INTERNAL_SERVICE_TOKEN=seu-token-local
+BETTER_AUTH_SECRET=seu-secret-local
+BETTER_AUTH_URL=http://localhost:3000
+INTERNAL_API_URL=http://localhost:8000
+TWILIO_OUTBOUND_MODE=mock
+```
 
-# Twilio (obrigatório para o Worker)
+Para desenvolvimento local, basta preencher `INTERNAL_SERVICE_TOKEN` e
+`BETTER_AUTH_SECRET` com valores não-vazios. Em production, ambos devem ter
+32+ caracteres.
+
+Se quiser validar envio real pelo Twilio no ambiente local:
+
+```bash
+TWILIO_OUTBOUND_MODE=real
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -53,7 +66,7 @@ Arquivos centrais do agente:
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/prompts.py`
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py`
 
-## 3. Trilha B: stack completo da Fase 3
+## 3. Trilha B: stack completo do projeto (Fase 4 em andamento)
 
 ### Subir serviços
 
@@ -64,9 +77,10 @@ make up
 Isso sobe:
 - `db` (PostgreSQL + pgvector)
 - `api` (FastAPI)
-- `worker` (consumidor da fila)
+- `worker` (consumidor da fila; em dev usa Twilio mock por default)
+- `frontend` (painel administrativo)
 
-> O worker faz fail-fast se as credenciais outbound do Twilio estiverem ausentes.
+> O worker faz fail-fast apenas quando `TWILIO_OUTBOUND_MODE=real` e alguma credencial outbound do Twilio estiver ausente.
 > Para webhook público, sandbox e cloudflared, siga também [Integração Twilio](TWILIO.md).
 
 ### Reset completo do ambiente Docker
@@ -115,9 +129,9 @@ curl -X POST "http://localhost:8000/webhook/twilio?agent=rhawk_assistant" \
 Depois consulte:
 
 ```bash
-curl http://localhost:8000/api/metrics
-curl http://localhost:8000/api/chats
-curl http://localhost:8000/api/chats/+5511999999999
+curl -H "Authorization: Bearer <seu_INTERNAL_SERVICE_TOKEN>" http://localhost:8000/api/metrics
+curl -H "Authorization: Bearer <seu_INTERNAL_SERVICE_TOKEN>" http://localhost:8000/api/chats
+curl -H "Authorization: Bearer <seu_INTERNAL_SERVICE_TOKEN>" http://localhost:8000/api/chats/+5511999999999
 ```
 
 ### 4.2.1 Teste manual no Swagger (`/docs`)

@@ -11,14 +11,19 @@ Uso:
 """
 
 import structlog
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from whatsapp_langchain.agents.loader import list_agents
+from whatsapp_langchain.server.dependencies import verify_service_token
 from whatsapp_langchain.shared.db import get_pool
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api", tags=["admin"])
+router = APIRouter(
+    prefix="/api",
+    tags=["admin"],
+    dependencies=[Depends(verify_service_token)],
+)
 
 
 @router.get("/agents")
@@ -176,7 +181,9 @@ async def get_metrics() -> dict:
             """
         )
         row = await cursor.fetchone()
-        avg_processing_time = round(row[0], 2) if row and row[0] else None
+        avg_processing_time = (
+            float(round(row[0], 2)) if row and row[0] is not None else None
+        )
 
         # Mensagens na fila agora
         cursor = await conn.execute(
@@ -191,3 +198,67 @@ async def get_metrics() -> dict:
         "avg_processing_time_seconds": avg_processing_time,
         "queue_size": queue_size,
     }
+
+
+@router.get("/queue")
+async def get_queue() -> dict:
+    """Visão geral da fila de mensagens: contadores por status e mensagens recentes.
+
+    Usado pelo painel admin para monitorar o estado da fila em tempo real.
+    Retorna contadores do dia atual agrupados por status e as últimas 50 mensagens.
+
+    Returns:
+        Contadores por status (queued, processing, done, failed) e lista
+        das 50 mensagens mais recentes com dados resumidos.
+    """
+    pool = await get_pool()
+
+    async with pool.connection() as conn:
+        # Contadores por status (apenas do dia atual)
+        cursor = await conn.execute(
+            """
+            SELECT status, COUNT(*) as count
+            FROM message_queue
+            WHERE created_at >= CURRENT_DATE
+            GROUP BY status
+            """
+        )
+        status_rows = await cursor.fetchall()
+
+        # Inicializa todos os status com zero para garantir presença no response
+        counters = {"queued": 0, "processing": 0, "done": 0, "failed": 0}
+        for row in status_rows:
+            counters[row[0]] = row[1]
+
+        # Mensagens recentes (últimas 50, qualquer data)
+        cursor = await conn.execute(
+            """
+            SELECT id, phone_number, agent_id,
+                   LEFT(incoming_message, 100) as incoming_message,
+                   status, created_at, attempts, error
+            FROM message_queue
+            ORDER BY created_at DESC
+            LIMIT 50
+            """
+        )
+        message_rows = await cursor.fetchall()
+
+    messages = [
+        {
+            "id": row[0],
+            "phone_number": row[1],
+            "agent_id": row[2],
+            "incoming_message": row[3],
+            "status": row[4],
+            "created_at": row[5].isoformat() if row[5] else None,
+            "attempts": row[6],
+            "error": row[7],
+        }
+        for row in message_rows
+    ]
+
+    logger.debug(
+        "queue_status_fetched", counters=counters, messages_count=len(messages)
+    )
+
+    return {"counters": counters, "messages": messages}

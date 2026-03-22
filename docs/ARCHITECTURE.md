@@ -4,7 +4,7 @@ Este projeto ensina agentes por uma perspectiva de **sistemas**.
 O agente é só uma parte da solução. O valor real está no fluxo completo:
 entrada confiável, processamento assíncrono, persistência, recuperação de falhas e inspeção operacional.
 
-## Estado Atual (Fase 3 concluída)
+## Estado Atual (Fase 4 em andamento)
 
 Implementado:
 - API FastAPI com webhook Twilio assíncrono (`POST /webhook/twilio`)
@@ -22,14 +22,15 @@ Implementado:
 - processamento de mídia (imagem e áudio) via OpenRouter
 - retry com backoff progressivo e status de falha
 - APIs administrativas para inspeção
-
-Fora do escopo da Fase 3:
-- frontend/admin panel neste repositório
-- deploy Railway reproduzível
-- stress testing e hardening operacional final
+- frontend/admin panel em Next.js
+- autenticação administrativa com Better Auth no schema `auth`
+- proteção das rotas `/api/*` com `INTERNAL_SERVICE_TOKEN`
+- deploy documentado em Railway
+- stress testing documentado
 
 Limitações conhecidas da fase:
 - `NumMedia > 1` no mesmo webhook continua fora do escopo
+- fechamento e2e final ainda depende de número real Twilio + smoke final
 
 ## Visão de Componentes
 
@@ -37,6 +38,11 @@ Limitações conhecidas da fase:
 
 ```text
 [Twilio/WhatsApp]
+      |
+      v
+[Frontend Next.js]
+  - Better Auth
+  - server-side fetch para /api/*
       |
       v
 [API FastAPI]
@@ -59,6 +65,10 @@ Limitações conhecidas da fase:
   - invoca agente
   - envia resposta via Twilio
   - marca done/failed
+
+[PostgreSQL auth]
+  - schema auth
+  - user/session/account
 ```
 
 ## Fronteiras e Contratos
@@ -71,6 +81,7 @@ Responsabilidades:
 - responder rápido com TwiML vazio
 - não executar agente inline
 - enfileirar payload normalizado
+- proteger `/api/*` via token interno compartilhado com o frontend
 
 Contratos relevantes:
 - `agent` via query string
@@ -92,6 +103,14 @@ Responsabilidades:
 Contrato de execução do agente:
 - `thread_id`: memória de conversa (checkpointer)
 - `user_id`: memória cross-thread (store semântico), derivado do telefone do webhook Twilio
+
+### Frontend (`frontend/`)
+
+Responsabilidades:
+- autenticar administradores com Better Auth
+- consumir rotas administrativas apenas server-side
+- usar `INTERNAL_API_URL` + `INTERNAL_SERVICE_TOKEN` para falar com a API
+- manter tabelas de auth separadas no schema `auth`
 
 ### Shared (`src/whatsapp_langchain/shared/`)
 
@@ -210,8 +229,7 @@ Logs estruturados com `structlog` em todos os componentes.
 
 ## Próximos passos de arquitetura
 
-- frontend/admin panel no mesmo repositório
-- deploy reproduzível em plataforma gerenciada
-- stress testing e leitura de gargalos operacionais
-- endurecimento para multi-instância (rate limit distribuído)
+- fechar o teste e2e real com número Twilio final
+- endurecer operação multi-instância (rate limit distribuído)
+- revisar proteção de admin/CORS para produção
 - suporte explícito a cenários fora do escopo atual, como `NumMedia > 1`

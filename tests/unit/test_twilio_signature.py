@@ -16,13 +16,17 @@ client = TestClient(app, raise_server_exceptions=False)
 
 # Token de teste (qualquer string serve para gerar/validar HMAC)
 TEST_AUTH_TOKEN = "test_auth_token_for_signature_validation"
+TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
 TEST_WEBHOOK_URL = "https://example.com"
 
 
 @pytest.fixture(autouse=True)
-def mock_db():
+def mock_db(monkeypatch):
     """Mock do banco de dados para testes sem PostgreSQL."""
+    from whatsapp_langchain.shared.config import settings
+
     mock_pool = AsyncMock()
+    monkeypatch.setattr(settings, "internal_service_token", TEST_INTERNAL_SERVICE_TOKEN)
     with (
         patch(
             "whatsapp_langchain.server.routes.health.check_db_health",

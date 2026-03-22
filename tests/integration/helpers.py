@@ -17,11 +17,18 @@ import psycopg
 
 DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/whatsapp_langchain"
 API_BASE_URL = "http://localhost:8000"
+TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
 
 
 def get_db_url() -> str:
     """Retorna URL de conexão ao banco de dados."""
     return os.getenv("DATABASE_URL", DEFAULT_DB_URL)
+
+
+def get_admin_api_headers() -> dict[str, str]:
+    """Retorna headers para rotas administrativas protegidas."""
+    token = os.getenv("INTERNAL_SERVICE_TOKEN", TEST_INTERNAL_SERVICE_TOKEN)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def unique_phone(ddd: str = "99") -> str:

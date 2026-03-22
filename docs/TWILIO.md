@@ -76,6 +76,9 @@ Todas as variáveis Twilio no `.env`:
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # --- Outbound (Worker → Twilio Messages API) ---
+# mock em dev local / real para envio de verdade
+TWILIO_OUTBOUND_MODE=mock
+
 # API Key: Console → Account → API keys & tokens → Create API Key
 TWILIO_API_KEY_SID=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -94,6 +97,10 @@ VALIDATE_TWILIO_SIGNATURE=false
 # (ex: https://abc.trycloudflare.com, NÃO incluir /webhook/twilio)
 TWILIO_WEBHOOK_URL=
 ```
+
+Em desenvolvimento local, `TWILIO_OUTBOUND_MODE=mock` permite validar fila,
+worker, admin panel e E2E sem consumir cota do sandbox. Para testes reais de
+WhatsApp, mude para `TWILIO_OUTBOUND_MODE=real`.
 
 **Onde encontrar:**
 - `TWILIO_ACCOUNT_SID` e `TWILIO_AUTH_TOKEN`: [Console Twilio](https://console.twilio.com/) → Account Info
@@ -225,6 +232,51 @@ curl -X POST "https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_a
 # Deve retornar 403 (Missing Twilio signature)
 ```
 
+### Como a validação de assinatura funciona
+
+O `TWILIO_AUTH_TOKEN` **não é gerado por você** --- é criado pelo Twilio e aparece no
+[Console → Account Info](https://console.twilio.com/). É um segredo que só você e o
+Twilio conhecem.
+
+A cada POST no webhook, o Twilio calcula um HMAC-SHA1 usando:
+
+1. O `Auth Token` (segredo compartilhado)
+2. A URL completa do webhook (incluindo query params como `?agent=rhawk_assistant`)
+3. Os parâmetros POST ordenados alfabeticamente (`Body`, `From`, `MessageSid`, etc.)
+
+O resultado vai no header `X-Twilio-Signature` do request.
+
+```
+Twilio                                      Sua API
+  │                                            │
+  │  POST /webhook/twilio?agent=rhawk_assistant │
+  │  X-Twilio-Signature: "abc123..."           │
+  │  Body=Ola&From=whatsapp:+5511...           │
+  │────────────────────────────────────────────>│
+  │                                            │
+  │                         1. Extrai X-Twilio-Signature do header
+  │                         2. Reconstroi a URL pública via TWILIO_WEBHOOK_URL
+  │                            (necessário porque atrás de proxy a URL interna
+  │                             e http://0.0.0.0:8000, não a URL pública)
+  │                         3. Recalcula o HMAC-SHA1 com:
+  │                            - TWILIO_AUTH_TOKEN (mesmo segredo)
+  │                            - URL reconstruida
+  │                            - parâmetros POST
+  │                         4. Compara os dois hashes:
+  │                            match → 200 (aceita)
+  │                            não match → 403 (rejeita)
+```
+
+**Por que é seguro?** Sem o `Auth Token`, ninguém consegue forjar a assinatura. Se alguém
+tentar fazer POST direto no seu webhook (ex: bot malicioso), o HMAC não vai bater e a API
+retorna 403. O token nunca trafega na rede --- só o hash derivado dele.
+
+**Por que `TWILIO_WEBHOOK_URL` é obrigatório em produção?** Atrás de proxy (Railway,
+cloudflared), o `request.url` interno mostra `http://0.0.0.0:8000/...`, mas o Twilio
+assinou usando a URL pública `https://api-*.up.railway.app/...`. Se a URL não bater na
+reconstrução, o HMAC diverge e a validação falha com 403 --- mesmo sendo um request
+legítimo do Twilio.
+
 ## 7. Variáveis por serviço
 
 | Variável | API | Worker | Obrigatória |
@@ -241,7 +293,10 @@ curl -X POST "https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_a
 
 \* Usada pela dependency de validação de assinatura no webhook.
 
-> **Fase 3:** Twilio é obrigatório no Worker. O Worker faz fail-fast na inicialização se `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` ou `TWILIO_FROM_NUMBER` estiverem vazios. Nenhum `mark_done` ocorre sem envio Twilio confirmado.
+> Em `TWILIO_OUTBOUND_MODE=real`, o Worker faz fail-fast se `TWILIO_ACCOUNT_SID`,
+> `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` ou `TWILIO_FROM_NUMBER`
+> estiverem vazios. Em `mock`, o fluxo assíncrono continua funcional, mas o
+> envio outbound é apenas simulado.
 
 ## 8. Debounce e mídia
 

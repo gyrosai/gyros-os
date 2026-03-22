@@ -9,12 +9,14 @@ Uso:
     print(settings.database_url)
     print(settings.rate_limit_per_hour)
 
-Todas as configurações têm defaults sensatos para desenvolvimento local.
-Em produção, configure via variáveis de ambiente ou .env.
+A maior parte das configurações tem defaults sensatos para desenvolvimento local.
+Segredos compartilhados do painel/admin devem ser preenchidos explicitamente.
 """
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIN_PRODUCTION_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -35,6 +37,11 @@ class Settings(BaseSettings):
         "postgresql://postgres:postgres@localhost:5432/whatsapp_langchain"
     )
 
+    # --- Environment ---
+    # "development" (default) ou "production" — controla comportamentos como
+    # exposicao do webhook sincrono (desabilitado em production)
+    environment: str = "development"
+
     # --- Server ---
     port: int = 8000
     log_level: str = "info"
@@ -47,6 +54,8 @@ class Settings(BaseSettings):
     twilio_webhook_url: str = ""
 
     # Outbound (envio de mensagens pelo worker via API Key)
+    # Em dev local o fallback efetivo e "mock"; em production, "real".
+    twilio_outbound_mode: str = ""
     twilio_account_sid: str = ""
     twilio_api_key_sid: str = ""
     twilio_api_key_secret: str = ""
@@ -86,12 +95,45 @@ class Settings(BaseSettings):
     summarize_keep_messages: int = 10
     summarize_model: str = "x-ai/grok-4.1-fast"
 
+    # --- Internal Service Token ---
+    # Token compartilhado entre frontend e API para proteger rotas administrativas.
+    # Preencha também em desenvolvimento; em produção, use um token forte.
+    internal_service_token: str = ""
+
     # --- Semantic Memory (LangGraph Store) ---
     memory_enabled: bool = True
     # Nome do modelo no OpenRouter (sem prefixo "openai:")
     embedding_model: str = "openai/text-embedding-3-small"
     embedding_dims: int = 1536
     memory_search_limit: int = 5
+
+    @property
+    def resolved_twilio_outbound_mode(self) -> str:
+        """Resolve o modo outbound do Twilio com fallback seguro por ambiente."""
+        mode = self.twilio_outbound_mode.strip().lower()
+        if mode:
+            return mode
+
+        return "real" if self.environment == "production" else "mock"
+
+    @property
+    def is_production(self) -> bool:
+        """Indica se a aplicacao esta rodando em modo production."""
+        return self.environment.strip().lower() == "production"
+
+    def validate_runtime_settings(self) -> None:
+        """Valida configuração mínima e hardening por ambiente."""
+        token = self.internal_service_token.strip()
+        if not token:
+            raise ValueError(
+                "INTERNAL_SERVICE_TOKEN deve ser preenchido antes de subir a API."
+            )
+
+        if self.is_production and len(token) < MIN_PRODUCTION_SECRET_LENGTH:
+            raise ValueError(
+                "Production requer valor forte para INTERNAL_SERVICE_TOKEN. "
+                "Atualize as env vars antes do deploy."
+            )
 
 
 # Singleton — importar de qualquer lugar do projeto

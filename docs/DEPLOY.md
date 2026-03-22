@@ -1,135 +1,102 @@
 # Deploy
 
-Este guia cobre a base de publicação da **Fase 3**:
-- API FastAPI exposta para webhook Twilio
-- Worker assíncrono com envio outbound real
+Este guia resume o deploy da fase atual do projeto e aponta para os
+documentos detalhados de operação.
+
+## Estado atual
+
+Na Fase 4, o projeto já cobre:
+- API FastAPI pública para `POST /webhook/twilio`
+- Worker assíncrono com envio outbound via Twilio
+- Frontend/admin panel em Next.js com Better Auth
 - PostgreSQL com pgvector
+- deploy de referência em Railway
+- stress testing e leitura de gargalos
 
-Objetivo: publicar a arquitetura de processamento assíncrono com persistência, memória e canal real via Twilio.
+## Topologia alvo
 
-## Escopo desta fase
+```text
+Internet -> Frontend (público)
+Internet -> API (pública para /health e /webhook/twilio)
+Twilio -> API (webhook inbound)
+Frontend -> API (server-side via INTERNAL_API_URL + INTERNAL_SERVICE_TOKEN)
+API -> PostgreSQL
+Worker -> PostgreSQL
+Frontend -> PostgreSQL (schema auth)
+Worker -> Twilio (outbound)
+```
 
-Incluído:
-- webhook Twilio assíncrono (`/webhook/twilio`)
-- validação real de assinatura via `X-Twilio-Signature` quando habilitada
-- fila em PostgreSQL
-- execução de agente no worker
-- envio de resposta para WhatsApp via Twilio Messages API
-- typing indicator best-effort antes do processamento
-- contexto por checkpointer
-- memória semântica por store com tools (`save_memory` e `read_memory`)
-- rotas administrativas e health check
+## Guias detalhados
 
-Ainda não incluído como fechamento operacional:
-- frontend/admin panel neste repositório
-- deploy específico de plataforma gerenciada (ex: Railway)
-- stress testing comparativo e hardening final
+- [Railway](RAILWAY.md): provisionamento de serviços, rede interna, variáveis e watch paths
+- [Twilio](TWILIO.md): credenciais, webhook, assinatura, sandbox e cloudflared
+- [Stress Testing](STRESS_TESTING.md): preparo do ambiente e leitura de throughput/latência
 
-## Topologia mínima de produção
+## Variáveis essenciais por serviço
 
-- `db`: PostgreSQL (com extensão `vector`)
-- `api`: processo HTTP (`uvicorn ...server.main:app`) exposto publicamente para o webhook
-- `worker`: processo consumidor (`python -m ...worker.main`) com acesso outbound ao Twilio
+### API
 
-A API e o worker devem compartilhar:
-- o mesmo banco
-- a mesma base de configuração do projeto
-- a mesma versão de código
-
-Para setup de sandbox, cloudflared e webhook público, use também [TWILIO.md](TWILIO.md).
-
-## Variáveis obrigatórias
-
-Comuns:
 - `DATABASE_URL`
+- `ENVIRONMENT=production`
+- `LOG_JSON=true`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_BASE_URL`
+- `VALIDATE_TWILIO_SIGNATURE=true`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_WEBHOOK_URL`
+- `INTERNAL_SERVICE_TOKEN`
+- `MEMORY_ENABLED`, `EMBEDDING_MODEL`, `EMBEDDING_DIMS` quando memória semântica estiver ativa
+
+### Worker
+
+- `DATABASE_URL`
+- `ENVIRONMENT=production`
+- `LOG_JSON=true`
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_BASE_URL`
 - `OPENROUTER_MODEL`
-
-Obrigatórias no worker:
+- `OPENROUTER_MIDIA_MODEL`
+- `TWILIO_OUTBOUND_MODE=real`
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_API_KEY_SID`
 - `TWILIO_API_KEY_SECRET`
 - `TWILIO_FROM_NUMBER`
 
-Obrigatórias na API quando a validação de assinatura estiver habilitada:
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_WEBHOOK_URL`
-- `VALIDATE_TWILIO_SIGNATURE=true`
+> Em `TWILIO_OUTBOUND_MODE=real`, o worker encerra no boot se as credenciais
+> outbound do Twilio estiverem ausentes.
 
-Recomendadas para operação:
-- `LOG_JSON=true`
-- `CONTEXT_STRATEGY`
-- `MESSAGE_BUFFER_SECONDS`
-- `POLL_INTERVAL_SECONDS`
-- `LEASE_SECONDS`
-- `MAX_ATTEMPTS`
-- `MEMORY_ENABLED`
-- `EMBEDDING_MODEL`
-- `EMBEDDING_DIMS`
+### Frontend
 
-## Ordem de subida
+- `ENVIRONMENT=production`
+- `DATABASE_URL`
+- `INTERNAL_API_URL`
+- `INTERNAL_SERVICE_TOKEN`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
 
-1. Subir banco PostgreSQL com pgvector.
-2. Subir API (aplica migrações no startup).
-3. Subir Worker.
-4. Verificar `GET /health`.
-5. Se o webhook for público, configurar `TWILIO_WEBHOOK_URL` e validação de assinatura na API.
-6. Enviar mensagem de teste para `/webhook/twilio`.
-7. Acompanhar `/api/metrics` e logs de API/worker.
+## Fluxo recomendado de publicacao
 
-> Na Fase 3, o worker faz fail-fast se as credenciais outbound do Twilio estiverem ausentes.
+1. Provisionar `db`, `api`, `worker` e `frontend`.
+2. Configurar as variáveis de ambiente por serviço.
+3. Publicar domínio da API e do Frontend.
+4. Configurar o webhook do Twilio apontando para `https://<api>/webhook/twilio?agent=rhawk_assistant`.
+5. Criar o primeiro admin manualmente com credenciais fortes, validar o login no painel e rotacionar a senha se necessário.
+6. Executar smoke tests de API, painel e mensagem real no WhatsApp.
 
-## Deploy com Docker (referência)
+## Checklist de verificação
 
-Os Dockerfiles e `docker-compose.yml` deste repositório representam a base executável da Fase 3.
+- `GET /health` responde `200`
+- `/login` renderiza corretamente no Frontend
+- request com assinatura inválida retorna `403` quando a validação está habilitada
+- `message_queue` recebe mensagens e o worker faz `queued -> processing -> done|failed`
+- a resposta chega ao WhatsApp antes de `mark_done`
+- o Frontend acessa `/api/*` apenas via `INTERNAL_SERVICE_TOKEN`
+- não existe bootstrap automático de admin previsível em production
 
-Build local:
+## Notas operacionais
 
-```bash
-docker compose build
-```
-
-Subida local (modo próximo da produção):
-
-```bash
-docker compose up -d
-```
-
-Logs:
-
-```bash
-docker compose logs -f api worker db
-```
-
-## Checklist operacional
-
-- health check responde 200
-- request com assinatura inválida retorna 403 quando a validação está habilitada
-- `message_queue` recebe mensagens
-- worker faz transição `queued -> processing -> done|failed`
-- worker tenta `typing` antes do agente nas execuções normais
-- resposta outbound chega ao Twilio antes de `mark_done`
-- memória semântica persiste em `store` com prefixo `<phone_number>.memories`
-- retries acontecem quando há erro transitório
-- métricas administrativas retornam dados
-- logs estruturados habilitados (`LOG_JSON=true` em produção)
-
-## Hardening recomendado
-
-- mover rate limit HTTP para backend distribuído (Redis ou DB)
-- configurar supervisão de processos (restart policy/health probes)
-- habilitar `VALIDATE_TWILIO_SIGNATURE=true` quando o webhook estiver exposto publicamente
-- proteger ou restringir acesso às rotas administrativas por rede/proxy
-- rotacionar segredos do Twilio e do provedor LLM
-- adicionar alertas para:
-  - crescimento de `queue_size`
-  - aumento de `failed`
-  - latência média de processamento
-
-## Próxima evolução
-
-Ao avançar para fases seguintes:
-- publicar frontend/admin panel
-- documentar deploy em plataforma gerenciada
-- executar stress testing e hardening final
+- Em `ENVIRONMENT=production`, o endpoint `/webhook/sync` fica desabilitado.
+- `TWILIO_OUTBOUND_MODE=mock` e útil para desenvolvimento local e stress test sem custo real.
+- Em qualquer ambiente, o painel falha cedo se `INTERNAL_SERVICE_TOKEN` ou `BETTER_AUTH_SECRET` estiverem ausentes; em production, também exige valores fortes.
+- O primeiro admin deve ser criado via `frontend/scripts/seed-admin.ts` com `ADMIN_EMAIL` e `ADMIN_PASSWORD` explícitos.
+- O guia detalhado de Railway fica em [RAILWAY.md](RAILWAY.md); este arquivo é a visão geral.
