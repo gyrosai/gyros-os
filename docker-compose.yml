@@ -38,6 +38,13 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/whatsapp_langchain
       LOG_JSON: "true"
+      INTERNAL_SERVICE_TOKEN: dev-token-change-in-production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     depends_on:
       db:
         condition: service_healthy
@@ -71,7 +78,7 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
 
   # Locust para teste de carga.
   # Usa profile "testing" para não subir junto com os serviços principais.
