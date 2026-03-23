@@ -1,6 +1,7 @@
-# Integração Twilio — Setup, Webhook e Cloudflared
+# Integração Twilio — Sandbox, Produção e Cutover
 
-Guia para configurar o envio e recebimento de mensagens WhatsApp via Twilio.
+Guia completo para configurar envio e recebimento de mensagens WhatsApp via Twilio.
+Dividido em duas trilhas: **Parte A** (sandbox/desenvolvimento local) e **Parte B** (número real/produção).
 
 ## Visão geral
 
@@ -12,7 +13,9 @@ Twilio (nuvem)
        │  POST /webhook/twilio?agent=rhawk_assistant
        │  X-Twilio-Signature: <HMAC-SHA1>
        ▼
-cloudflared tunnel ──► API (localhost:8000)
+cloudflared tunnel ──► API (localhost:8000)       [Parte A — sandbox/local]
+       ou
+Domínio Railway ──► API (api-*.up.railway.app)    [Parte B — produção]
                               │
                               ▼
                        PostgreSQL (fila)
@@ -27,13 +30,14 @@ cloudflared tunnel ──► API (localhost:8000)
                        TwilioClient.send_message() ──► WhatsApp
 ```
 
-## 1. Pré-requisitos
+---
 
-- Conta Twilio com sandbox WhatsApp ativa
-- `cloudflared` instalado ([download](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/))
-- Stack local rodando (`make up` ou `make db` + `make api` + `make worker`)
+# Parte A — Sandbox + Desenvolvimento Local
 
-### 1.1 Criar conta Twilio (do zero)
+Tudo o que você precisa para rodar localmente com o sandbox do Twilio.
+Nenhuma dependência de número real ou aprovação da Meta.
+
+## A.1 Criar conta Twilio (do zero)
 
 1. Acesse [Twilio Console](https://console.twilio.com/) e clique em **Sign up**.
 2. Confirme e-mail e telefone.
@@ -42,7 +46,7 @@ cloudflared tunnel ──► API (localhost:8000)
 
 > Dica (Brasil): se a confirmação por SMS falhar, tente validação por ligação de voz.
 
-### 1.2 Obter credenciais no Console (SID, Token e API Key)
+## A.2 Obter credenciais no Console (SID, Token e API Key)
 
 1. No Dashboard, copie:
    - `Account SID` (começa com `AC`)
@@ -61,14 +65,23 @@ cloudflared tunnel ──► API (localhost:8000)
 
 > O `API Key Secret` aparece apenas uma vez. Guarde imediatamente.
 
-## 2. Variáveis de ambiente
+**Onde encontrar cada credencial:**
+
+| Credencial | Onde | Formato |
+|---|---|---|
+| `Account SID` | [Console → Account Info](https://console.twilio.com/) | `ACxxxxxxxx` |
+| `Auth Token` | [Console → Account Info](https://console.twilio.com/) (clique em Show) | 32 chars hex |
+| `API Key SID` | Console → Account → API keys & tokens | `SKxxxxxxxx` |
+| `API Key Secret` | Exibido ao criar a API Key (única vez) | 32 chars |
+
+## A.3 Variáveis de ambiente (.env para local)
 
 A autenticação Twilio é dividida em dois contextos:
 
 - **Outbound** (Worker → Twilio): usa API Key (`TWILIO_API_KEY_SID` + `TWILIO_API_KEY_SECRET`)
 - **Inbound** (validação de assinatura): usa `TWILIO_AUTH_TOKEN`
 
-Todas as variáveis Twilio no `.env`:
+Configure no `.env`:
 
 ```bash
 # === Twilio ===
@@ -90,11 +103,10 @@ TWILIO_FROM_NUMBER=whatsapp:+14155238886
 # Auth Token: Console → Account Info (para HMAC-SHA1)
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Habilitar validação de assinatura em produção
+# Habilitar validação de assinatura (false para sandbox local)
 VALIDATE_TWILIO_SIGNATURE=false
 
 # URL pública base do túnel — apenas o domínio, sem path
-# (ex: https://abc.trycloudflare.com, NÃO incluir /webhook/twilio)
 TWILIO_WEBHOOK_URL=
 ```
 
@@ -102,22 +114,17 @@ Em desenvolvimento local, `TWILIO_OUTBOUND_MODE=mock` permite validar fila,
 worker, admin panel e E2E sem consumir cota do sandbox. Para testes reais de
 WhatsApp, mude para `TWILIO_OUTBOUND_MODE=real`.
 
-**Onde encontrar:**
-- `TWILIO_ACCOUNT_SID` e `TWILIO_AUTH_TOKEN`: [Console Twilio](https://console.twilio.com/) → Account Info
-- `TWILIO_API_KEY_SID` e `TWILIO_API_KEY_SECRET`: Console → Account → API keys & tokens → Create API Key
-- `TWILIO_FROM_NUMBER`: Console → Messaging → Try it out → Send a WhatsApp message
-
-## 3. Ativar sandbox WhatsApp
+## A.4 Ativar sandbox WhatsApp
 
 1. Acesse [Twilio Console → WhatsApp Sandbox](https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn)
-2. Envie a mensagem de ativação (ex: "join <código>") do seu celular para o número do sandbox
+2. Envie a mensagem de ativação (ex: "join \<código\>") do seu celular para o número do sandbox
 3. Confirme que o sandbox está ativo (status "Connected")
 4. Copie o número do sandbox exibido na tela (ex: `+1 415 523 8886`) e configure:
    - `TWILIO_FROM_NUMBER=whatsapp:+14155238886`
 
 > O sandbox tem validade de 72h. Se parar de funcionar, reenvie a mensagem de ativação.
 
-## 4. Túnel local com cloudflared
+## A.5 Túnel local com cloudflared
 
 Cloudflared cria um túnel público → localhost sem necessidade de conta Cloudflare.
 
@@ -134,7 +141,7 @@ INF |  https://random-name.trycloudflare.com
 INF +----------------------------+
 ```
 
-Copie a URL gerada (ex: `https://random-name.trycloudflare.com`) e configure no `.env`:
+Copie a URL gerada e configure no `.env`:
 
 ```bash
 TWILIO_WEBHOOK_URL=https://random-name.trycloudflare.com
@@ -149,14 +156,14 @@ TWILIO_WEBHOOK_URL=https://random-name.trycloudflare.com
 - Mesmo protocolo (HTTPS com cert válido)
 - Suporte nativo a HTTP/2
 
-## 5. Configurar webhook no Twilio
+## A.6 Configurar webhook no Twilio (sandbox)
 
 1. Acesse [Twilio Console → WhatsApp Sandbox Settings](https://console.twilio.com/us1/develop/sms/settings/whatsapp-sandbox)
 2. Em "When a message comes in", configure:
    ```
    https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_assistant
    ```
-   Método: **HTTP POST**
+   Metodo: **HTTP POST**
 3. Salve
 
 ### Validar que o tunnel está funcionando
@@ -166,9 +173,9 @@ curl https://random-name.trycloudflare.com/health
 # {"status":"ok","database":"connected","version":"0.1.0"}
 ```
 
-## 6. Teste ponta a ponta
+## A.7 Teste ponta a ponta (sandbox)
 
-### 6.1 Fluxo simulado (sem Twilio real)
+### A.7.1 Fluxo simulado (sem Twilio real)
 
 ```bash
 # Simula o que o Twilio enviaria
@@ -185,9 +192,9 @@ Verifique:
 curl http://localhost:8000/api/chats/+5511999999999
 ```
 
-> Neste modo, VALIDATE_TWILIO_SIGNATURE deve estar `false` (padrão).
+> Neste modo, `VALIDATE_TWILIO_SIGNATURE` deve estar `false` (padrão).
 
-### 6.2 Fluxo real (Twilio + WhatsApp)
+### A.7.2 Fluxo real (Twilio + WhatsApp via sandbox)
 
 1. Confirme que todos os serviços estão rodando:
    ```bash
@@ -208,9 +215,9 @@ curl http://localhost:8000/api/chats/+5511999999999
    # Procure por: webhook_twilio_received, message_claimed, twilio_typing_sent, message_processed
    ```
 
-5. A resposta do agente deve chegar no WhatsApp (se `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` e `TWILIO_FROM_NUMBER` estiverem configurados)
+5. A resposta do agente deve chegar no WhatsApp (se as credenciais outbound estiverem configuradas e `TWILIO_OUTBOUND_MODE=real`)
 
-### 6.3 Habilitar validação de assinatura
+### A.7.3 Habilitar validação de assinatura (opcional no sandbox)
 
 Para testar com validação real:
 
@@ -232,7 +239,183 @@ curl -X POST "https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_a
 # Deve retornar 403 (Missing Twilio signature)
 ```
 
-### Como a validação de assinatura funciona
+---
+
+# Parte B — Número Real + Produção
+
+Tudo o que você precisa para operar com número WhatsApp Business real.
+Requer aprovação da Meta e deploy em ambiente publicado (Railway).
+
+## B.1 Adquirir número WhatsApp Business
+
+### Pré-requisitos
+
+- Conta Twilio com billing ativo (não trial)
+- Conta Meta Business verificada
+- Número de telefone dedicado (não pode estar registrado em outro WhatsApp)
+
+### Passo a passo
+
+1. No Twilio Console, vá em **Messaging → Senders → WhatsApp Senders**
+2. Clique em **Add WhatsApp Sender**
+3. Siga o fluxo de aprovação:
+   - Vincular Meta Business Account
+   - Informar detalhes do negócio (nome, endereço, site)
+   - Submeter o número de telefone para verificação
+4. Aguarde aprovação (pode levar de horas a dias dependendo da Meta)
+
+### WhatsApp Business Profile
+
+Após aprovação, configure o perfil do negócio:
+- **Display name**: nome que aparece para o usuário no WhatsApp
+- **About**: descrição curta do serviço
+- **Profile photo**: logo da marca (recomendado 640x640)
+
+### Message Templates (obrigatório para primeira mensagem)
+
+O WhatsApp Business API tem uma regra importante: **você só pode enviar mensagem
+proativa (fora da janela de 24h) usando templates pré-aprovados**.
+
+Para o fluxo de webhook (usuário envia primeiro), isso não é blocker — a resposta
+do agente cai dentro da janela de 24h. Mas se você precisar enviar a primeira
+mensagem, será necessário:
+
+1. Criar templates no Twilio Console → Messaging → Content Template Builder
+2. Submeter para aprovação da Meta
+3. Usar o template ID no envio
+
+> Para o fluxo padrão deste projeto (webhook inbound → resposta), templates não
+> são necessários. O usuário sempre inicia a conversa.
+
+## B.2 Variáveis de ambiente (produção)
+
+Diferenças em relação ao sandbox:
+
+```bash
+# Número real no formato whatsapp:+55XXXXXXXXXXX
+TWILIO_FROM_NUMBER=whatsapp:+5511999999999
+
+# Envio real obrigatório
+TWILIO_OUTBOUND_MODE=real
+
+# Validação de assinatura obrigatória em produção
+VALIDATE_TWILIO_SIGNATURE=true
+
+# URL pública da API no Railway (sem path)
+TWILIO_WEBHOOK_URL=https://api-production.up.railway.app
+
+# Ambiente
+ENVIRONMENT=production
+```
+
+Variáveis que **não mudam** entre sandbox e produção:
+- `TWILIO_ACCOUNT_SID` (mesmo account)
+- `TWILIO_API_KEY_SID` e `TWILIO_API_KEY_SECRET` (mesmas keys)
+- `TWILIO_AUTH_TOKEN` (mesmo token, do mesmo account)
+
+## B.3 Configurar webhook (produção / Railway)
+
+Diferente do sandbox, o webhook de produção é configurado em outro lugar do Console:
+
+1. Acesse **Twilio Console → Messaging → WhatsApp Senders**
+2. Selecione o número real
+3. Em **Webhook URL for incoming messages**, configure:
+   ```
+   https://api-production.up.railway.app/webhook/twilio?agent=rhawk_assistant
+   ```
+   Metodo: **HTTP POST**
+4. Salve
+
+> No sandbox, o webhook fica em "Sandbox Settings". Em produção, fica nas configurações do sender específico.
+
+### Validar o webhook
+
+```bash
+# Health check da API em produção
+curl https://api-production.up.railway.app/health
+# {"status":"ok","database":"connected","version":"0.1.0"}
+```
+
+## B.4 Checklist de cutover (sandbox → produção)
+
+### Pré-cutover
+
+- [ ] Número WhatsApp Business aprovado pela Meta
+- [ ] WhatsApp Business Profile configurado (nome, foto, about)
+- [ ] Conta Twilio com billing ativo (não trial)
+- [ ] Deploy no Railway funcionando (API, Worker, Frontend, DB)
+- [ ] `GET /health` retornando 200 em produção
+- [ ] Admin panel acessível via `/login` em produção
+- [ ] `INTERNAL_SERVICE_TOKEN` configurado com valor forte em produção
+- [ ] `BETTER_AUTH_SECRET` configurado com valor forte em produção
+- [ ] Primeiro admin criado com credenciais fortes (não as defaults do curso)
+
+### Execução do cutover
+
+- [ ] Atualizar `TWILIO_FROM_NUMBER` no Worker (Railway) com o número real
+- [ ] Atualizar `TWILIO_WEBHOOK_URL` na API (Railway) com o domínio público
+- [ ] Habilitar `VALIDATE_TWILIO_SIGNATURE=true` na API (Railway)
+- [ ] Confirmar `TWILIO_AUTH_TOKEN` configurado na API (Railway)
+- [ ] Configurar webhook no Twilio Console → WhatsApp Senders → número real
+- [ ] Redeploy da API e do Worker no Railway
+
+### Pós-cutover (smoke test)
+
+- [ ] Enviar mensagem do WhatsApp para o número real
+- [ ] Verificar nos logs do Worker: `webhook_twilio_received` → `message_claimed` → `message_processed`
+- [ ] Confirmar resposta do agente no WhatsApp
+- [ ] Verificar no admin panel que a conversa aparece em `/chats`
+- [ ] Testar assinatura inválida (curl direto sem header) → deve retornar 403
+- [ ] Verificar métricas em `/api/metrics`
+
+---
+
+# Referência
+
+## Variáveis por serviço
+
+| Variável | API | Worker | Obrigatória |
+|---|---|---|---|
+| `DATABASE_URL` | sim | sim | sim |
+| `OPENROUTER_API_KEY` | não | sim | sim (para agente) |
+| `TWILIO_ACCOUNT_SID` | não | sim | **sim** |
+| `TWILIO_API_KEY_SID` | não | sim | **sim** |
+| `TWILIO_API_KEY_SECRET` | não | sim | **sim** |
+| `TWILIO_FROM_NUMBER` | não | sim | **sim** |
+| `TWILIO_AUTH_TOKEN` | sim* | não | se validação ativa |
+| `TWILIO_WEBHOOK_URL` | sim* | não | se validação ativa |
+| `VALIDATE_TWILIO_SIGNATURE` | sim | não | não (default: false) |
+
+\* Usada pela dependency de validação de assinatura no webhook.
+
+> Em `TWILIO_OUTBOUND_MODE=real`, o Worker faz fail-fast se `TWILIO_ACCOUNT_SID`,
+> `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` ou `TWILIO_FROM_NUMBER`
+> estiverem vazios. Em `mock`, o fluxo assíncrono continua funcional, mas o
+> envio outbound é apenas simulado.
+
+## Debounce e mídia
+
+Regras de debounce:
+
+- **Texto**: mensagens rápidas do mesmo phone+agent são agrupadas (concatenadas) dentro da janela de `MESSAGE_BUFFER_SECONDS` (padrão: 2s)
+- **Mídia**: entra imediatamente (sem debounce). Antes de inserir mídia, textos pendentes do mesmo phone+agent são "flushed" (processados imediatamente)
+- **Ordem**: o worker processa por `created_at ASC`, então texto flushed sai antes da mídia
+- **Concorrência**: `pg_advisory_xact_lock(hash(phone+agent))` serializa operações do mesmo remetente/agente, impedindo race conditions entre webhooks simultâneos
+
+Exemplo de fluxo:
+```
+T=0.0s  Texto "Oi"           → enfileira, process_after=T+2s
+T=0.5s  Texto "Olha isso"    → debounce: "Oi\nOlha isso", process_after=T+2.5s
+T=1.0s  Imagem (foto.jpg)    → flush texto (process_after=NOW), insere mídia (NOW)
+T=1.1s  Worker pega texto    → processa "Oi\nOlha isso"
+T=1.2s  Worker pega imagem   → processa foto.jpg
+```
+
+### Download de mídia
+
+O worker autentica o download de mídia do Twilio com API Key (`TWILIO_API_KEY_SID` + `TWILIO_API_KEY_SECRET`). Sem autenticação, o download retorna 401 Unauthorized.
+
+## Como a validação de assinatura funciona
 
 O `TWILIO_AUTH_TOKEN` **não é gerado por você** --- é criado pelo Twilio e aparece no
 [Console → Account Info](https://console.twilio.com/). É um segredo que só você e o
@@ -257,10 +440,10 @@ Twilio                                      Sua API
   │                         1. Extrai X-Twilio-Signature do header
   │                         2. Reconstroi a URL pública via TWILIO_WEBHOOK_URL
   │                            (necessário porque atrás de proxy a URL interna
-  │                             e http://0.0.0.0:8000, não a URL pública)
+  │                             é http://0.0.0.0:8000, não a URL pública)
   │                         3. Recalcula o HMAC-SHA1 com:
   │                            - TWILIO_AUTH_TOKEN (mesmo segredo)
-  │                            - URL reconstruida
+  │                            - URL reconstruída
   │                            - parâmetros POST
   │                         4. Compara os dois hashes:
   │                            match → 200 (aceita)
@@ -277,56 +460,13 @@ assinou usando a URL pública `https://api-*.up.railway.app/...`. Se a URL não 
 reconstrução, o HMAC diverge e a validação falha com 403 --- mesmo sendo um request
 legítimo do Twilio.
 
-## 7. Variáveis por serviço
-
-| Variável | API | Worker | Obrigatória |
-|---|---|---|---|
-| `DATABASE_URL` | sim | sim | sim |
-| `OPENROUTER_API_KEY` | não | sim | sim (para agente) |
-| `TWILIO_ACCOUNT_SID` | não | sim | **sim** |
-| `TWILIO_API_KEY_SID` | não | sim | **sim** |
-| `TWILIO_API_KEY_SECRET` | não | sim | **sim** |
-| `TWILIO_FROM_NUMBER` | não | sim | **sim** |
-| `TWILIO_AUTH_TOKEN` | sim* | não | se validação ativa |
-| `TWILIO_WEBHOOK_URL` | sim* | não | se validação ativa |
-| `VALIDATE_TWILIO_SIGNATURE` | sim | não | não (default: false) |
-
-\* Usada pela dependency de validação de assinatura no webhook.
-
-> Em `TWILIO_OUTBOUND_MODE=real`, o Worker faz fail-fast se `TWILIO_ACCOUNT_SID`,
-> `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` ou `TWILIO_FROM_NUMBER`
-> estiverem vazios. Em `mock`, o fluxo assíncrono continua funcional, mas o
-> envio outbound é apenas simulado.
-
-## 8. Debounce e mídia
-
-Regras de debounce da Fase 3:
-
-- **Texto**: mensagens rápidas do mesmo phone+agent são agrupadas (concatenadas) dentro da janela de `MESSAGE_BUFFER_SECONDS` (padrão: 2s)
-- **Mídia**: entra imediatamente (sem debounce). Antes de inserir mídia, textos pendentes do mesmo phone+agent são "flushed" (processados imediatamente)
-- **Ordem**: o worker processa por `created_at ASC`, então texto flushed sai antes da mídia
-- **Concorrência**: `pg_advisory_xact_lock(hash(phone+agent))` serializa operações do mesmo remetente/agente, impedindo race conditions entre webhooks simultâneos
-
-Exemplo de fluxo:
-```
-T=0.0s  Texto "Oi"           → enfileira, process_after=T+2s
-T=0.5s  Texto "Olha isso"    → debounce: "Oi\nOlha isso", process_after=T+2.5s
-T=1.0s  Imagem (foto.jpg)    → flush texto (process_after=NOW), insere mídia (NOW)
-T=1.1s  Worker pega texto    → processa "Oi\nOlha isso"
-T=1.2s  Worker pega imagem   → processa foto.jpg
-```
-
-### Download de mídia
-
-O worker autentica o download de mídia do Twilio com API Key (`TWILIO_API_KEY_SID` + `TWILIO_API_KEY_SECRET`). Sem autenticação, o download retorna 401 Unauthorized.
-
-## 9. Limitações conhecidas
+## Limitações conhecidas
 
 ### NumMedia > 1
 
 Se o Twilio enviar um webhook com `NumMedia > 1` (múltiplas mídias no mesmo webhook), apenas a primeira mídia (`MediaUrl0`, `MediaContentType0`) é processada. As demais são ignoradas.
 
-Este é um tradeoff consciente desta fase — o template educacional foca em clareza do fluxo single-media. Suporte a multi-media pode ser adicionado em fases futuras.
+Este é um tradeoff consciente --- o template educacional foca em clareza do fluxo single-media. Suporte a multi-media pode ser adicionado em fases futuras.
 
 ### Typing indicator
 
@@ -352,12 +492,24 @@ O typing é **best-effort**: chamado antes de `graph.ainvoke()`, falha não inte
 - Apenas números previamente cadastrados recebem mensagens
 - Rate limits mais restritivos que produção
 
-## 10. Troubleshooting
+### Janela de 24h (produção)
+
+Em produção com número real, o WhatsApp Business API impõe uma **janela de 24 horas**:
+- Após o usuário enviar uma mensagem, você pode responder livremente por 24h
+- Após 24h sem interação, só pode enviar mensagens usando **templates pré-aprovados**
+- Para o fluxo webhook deste projeto (usuário inicia), isso raramente é um problema
+- Mas se o processamento demorar mais de 24h (ex: fila congestionada), a resposta pode falhar
+
+---
+
+# Troubleshooting
+
+## Sandbox
 
 ### Mensagem não chega no WhatsApp
 
 1. Verifique credenciais Twilio no `.env`
-2. Confirme que o sandbox está ativo (reenvie "join <código>")
+2. Confirme que o sandbox está ativo (reenvie "join \<código\>")
 3. Verifique logs do worker: `make logs | grep twilio`
 4. Confirme que `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` e `TWILIO_FROM_NUMBER` estão preenchidos
 
@@ -384,3 +536,58 @@ grep -E '^TWILIO_(ACCOUNT_SID|API_KEY_SID|API_KEY_SECRET|FROM_NUMBER)' .env
 ### Identidade inbound
 
 O webhook usa `From` (formato `whatsapp:+55...`) como identidade primária, com fallback para `WaId` (normalizado para `+E.164`). Se o phone_number chega incorreto, verifique o payload do Twilio nos logs.
+
+## Produção
+
+### 403 em produção (assinatura inválida)
+
+Causas mais comuns:
+1. **TWILIO_WEBHOOK_URL incorreta**: deve ser a URL pública exata da API (sem path, sem barra final)
+   - Correto: `https://api-production.up.railway.app`
+   - Errado: `https://api-production.up.railway.app/` (barra final)
+   - Errado: `https://api-production.up.railway.app/webhook/twilio` (com path)
+2. **Redeploy alterou o domínio**: se o Railway gerou novo domínio, atualize `TWILIO_WEBHOOK_URL`
+3. **Auth Token desatualizado**: se você regenerou o Auth Token no Twilio Console, atualize no Railway
+
+### Mensagem não chega em produção
+
+1. Verifique se o número real está aprovado e ativo no Twilio Console
+2. Confirme que o webhook está configurado em **WhatsApp Senders** (não em Sandbox Settings)
+3. Verifique logs no Railway: `railway logs --service worker`
+4. Confirme que `TWILIO_OUTBOUND_MODE=real` no Worker
+
+### Resposta demora ou não chega
+
+1. Verifique o LLM rate limit (`LLM_RATE_LIMIT_REQUESTS_PER_SECOND`)
+2. Verifique se o Worker está healthy no Railway
+3. Confira se a fila está congestionada: `curl -H "Authorization: Bearer $TOKEN" https://api/api/queue`
+
+### Template rejection (mensagem fora da janela)
+
+Se tentar enviar mensagem após 24h sem interação do usuário:
+- O Twilio retorna erro 63016 ("Message failed to send because more than 24 hours have passed since the customer last replied")
+- Solução: usar templates pré-aprovados ou aguardar o usuário iniciar nova conversa
+
+## Rollback: produção → sandbox
+
+Se precisar reverter para o sandbox após ativar produção:
+
+1. **Twilio Console**: reconfigurar webhook em **Sandbox Settings** (não em WhatsApp Senders)
+   ```
+   https://random-name.trycloudflare.com/webhook/twilio?agent=rhawk_assistant
+   ```
+2. **Railway (Worker)**: reverter variáveis
+   ```bash
+   TWILIO_FROM_NUMBER=whatsapp:+14155238886
+   TWILIO_OUTBOUND_MODE=mock  # ou real se quiser testar envio pelo sandbox
+   ```
+3. **Railway (API)**: reverter validação
+   ```bash
+   VALIDATE_TWILIO_SIGNATURE=false
+   TWILIO_WEBHOOK_URL=  # limpar ou apontar para cloudflared
+   ```
+4. Redeploy API e Worker no Railway
+5. Reativar sandbox no celular (enviar "join \<código\>" novamente se expirou)
+
+> O rollback não afeta dados. Mensagens já processadas permanecem no banco.
+> Conversas existentes continuam acessíveis no admin panel.

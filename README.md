@@ -14,7 +14,7 @@ O objetivo deste repositório é ensinar arquitetura de sistemas em volta do age
 
 ## Fase Atual
 
-**Fase 4 em andamento neste branch.**
+**Fase 5 em andamento neste branch.**
 
 Base já consolidada da Fase 3:
 - API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
@@ -42,8 +42,15 @@ Já adicionado na Fase 4:
 - deploy documentado para Railway
 - documentação e artefatos de stress testing
 
+Já adicionado na Fase 5:
+- documentação de integração Twilio reescrita (sandbox vs produção separados)
+- checklist de cutover sandbox → produção
+- rollback documentado (deploy e Twilio)
+- branding mínimo da rhawk.pro no painel (favicon, cores, metadados)
+
 Pendência principal para fechamento operacional:
-- teste e2e real com número Twilio final e smoke final em ambiente publicado
+- cutover real com número Twilio final (INT-484)
+- smoke e2e real com sender definitivo em ambiente publicado
 
 ## Arquitetura
 
@@ -190,8 +197,8 @@ make test-demo
 - **Fase 1** concluída: base de agentes + middleware de contexto
 - **Fase 2** concluída: API + Worker + PostgreSQL + observabilidade operacional
 - **Fase 3** concluída: integração Twilio + assinatura real + typing + reforço dos testes de debounce
-- **Fase 4** em andamento: frontend/admin panel + deploy Railway + stress testing
-- **Fechamento pendente**: teste e2e real com número Twilio final + smoke final
+- **Fase 4** concluída: frontend/admin panel + deploy Railway + stress testing
+- **Fase 5** em andamento: documentação go-live, branding mínimo, cutover real
 
 ## Licença
 

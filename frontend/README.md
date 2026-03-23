@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend Admin Panel
 
-## Getting Started
+Painel administrativo em Next.js para operacao do projeto `whatsapp-langchain`.
 
-First, run the development server:
+## Desenvolvimento local
+
+Para iterar no frontend, nao e necessario subir a stack inteira.
+
+### Requisitos minimos
+
+- PostgreSQL local via `make db`
+- arquivo `frontend/.env.local`
+- API local apenas se voce quiser navegar alem do login
+
+### 1. Configurar `frontend/.env.local`
+
+Exemplo minimo:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+INTERNAL_API_URL=http://localhost:8000
+INTERNAL_SERVICE_TOKEN=dev-token-local
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/whatsapp_langchain
+BETTER_AUTH_SECRET=dev-secret-local-1234567890
+BETTER_AUTH_URL=http://localhost:3000
+ENVIRONMENT=development
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Observacoes:
+- `INTERNAL_SERVICE_TOKEN` pode ser qualquer valor nao-vazio em desenvolvimento
+- `BETTER_AUTH_SECRET` tambem pode ser qualquer valor nao-vazio em desenvolvimento
+- esse arquivo e usado apenas por `npm run dev`
+- Docker Compose e ambientes publicados usam env vars do proprio servico
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Revisar apenas a tela de login
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd ..
+make db
+cd frontend
+npm run dev
+```
 
-## Learn More
+Abra [http://localhost:3000/login](http://localhost:3000/login).
 
-To learn more about Next.js, take a look at the following resources:
+O banco precisa estar de pe porque o login e o bootstrap do admin usam Better
+Auth + PostgreSQL diretamente.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Revisar o painel completo
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Se voce quiser abrir dashboard, agentes, fila e conversas, suba tambem a API:
 
-## Deploy on Vercel
+```bash
+cd ..
+make db
+make migrate   # necessario apenas em banco novo ou apos reset
+INTERNAL_SERVICE_TOKEN=dev-token-local make api
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Em outro terminal:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+cd frontend
+npm run dev
+```
+
+Nesse modo:
+- `db` e obrigatorio
+- `api` e obrigatoria para paginas que consultam `/api/*`
+- `worker` nao e necessario para revisao visual
+
+## Build
+
+```bash
+npm run build
+```
+
+## Integracao com Docker
+
+Use Docker Compose para validar a stack integrada, nao como fluxo principal de
+iteracao visual do frontend.
+
+Na stack Docker, as variaveis do frontend sao definidas no proprio servico
+`frontend` do `docker-compose.yml`.
+
+## Referencias
+
+- [Primeiros Passos](/Users/ronnald/Documents/code/pro/whatsapp-langchain/docs/GETTING_STARTED.md)
+- [Deploy](/Users/ronnald/Documents/code/pro/whatsapp-langchain/docs/DEPLOY.md)
+- [Railway](/Users/ronnald/Documents/code/pro/whatsapp-langchain/docs/RAILWAY.md)
