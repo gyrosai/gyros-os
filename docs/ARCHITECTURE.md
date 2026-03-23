@@ -4,7 +4,7 @@ Este projeto ensina agentes por uma perspectiva de **sistemas**.
 O agente é só uma parte da solução. O valor real está no fluxo completo:
 entrada confiável, processamento assíncrono, persistência, recuperação de falhas e inspeção operacional.
 
-## Estado Atual (Fase 4 em andamento)
+## Estado Atual
 
 Implementado:
 - API FastAPI com webhook Twilio assíncrono (`POST /webhook/twilio`)
@@ -28,9 +28,9 @@ Implementado:
 - deploy documentado em Railway
 - stress testing documentado
 
-Limitações conhecidas da fase:
+Limitações conhecidas:
 - `NumMedia > 1` no mesmo webhook continua fora do escopo
-- fechamento e2e final ainda depende de número real Twilio + smoke final
+- o fechamento operacional completo ainda depende de número real Twilio + smoke final
 
 ## Visão de Componentes
 
@@ -189,7 +189,7 @@ Isso separa duas necessidades diferentes:
 
 Agrupa mensagens de texto enviadas em sequência curta (`MESSAGE_BUFFER_SECONDS`) para reduzir custo e ruído.
 
-Na Fase 3:
+No estado atual do projeto:
 - texto faz debounce
 - mídia não faz debounce
 - antes de inserir mídia, textos pendentes do mesmo `phone+agent` são flushed

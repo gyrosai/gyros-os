@@ -66,7 +66,7 @@ Arquivos centrais do agente:
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/prompts.py`
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py`
 
-## 3. Trilha B: stack completo do projeto (Fase 4 em andamento)
+## 3. Trilha B: stack completo do projeto
 
 ### Desenvolvimento do frontend sem subir a stack inteira
 

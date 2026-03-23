@@ -1,18 +1,19 @@
 # Deploy
 
-Este guia resume o deploy da fase atual do projeto e aponta para os
-documentos detalhados de operação.
+Este guia resume o deploy do projeto e aponta para os documentos detalhados
+de operação.
 
 ## Estado atual
 
-Na Fase 5, o projeto já cobre:
+Hoje o projeto cobre:
 - API FastAPI pública para `POST /webhook/twilio`
 - Worker assíncrono com envio outbound via Twilio
 - Frontend/admin panel em Next.js com Better Auth
 - PostgreSQL com pgvector
 - deploy de referência em Railway
 - stress testing e leitura de gargalos
-- docs rewrite com separação clara sandbox/produção, branding mínimo e microaula
+- documentação final com separação clara entre sandbox e produção
+- branding mínimo aplicado no frontend
 
 ## Topologia alvo
 
