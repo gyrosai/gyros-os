@@ -71,8 +71,8 @@ export function ChangePasswordForm({
       <CardHeader>
         <CardTitle>Trocar senha</CardTitle>
         <CardDescription>
-          Usuario atual: {email}. Se voce usou as credenciais padrao do curso,
-          troque a senha neste formulario antes de colocar o painel em uso.
+          Usuário atual: {email}. Se você usou as credenciais padrão do curso,
+          troque a senha neste formulário antes de colocar o painel em uso.
         </CardDescription>
       </CardHeader>
       <CardContent>

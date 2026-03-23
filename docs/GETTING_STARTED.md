@@ -68,6 +68,61 @@ Arquivos centrais do agente:
 
 ## 3. Trilha B: stack completo do projeto (Fase 4 em andamento)
 
+### Desenvolvimento do frontend sem subir a stack inteira
+
+Se o objetivo for trabalhar no painel administrativo, nao e obrigatorio subir
+`worker` ou a stack Docker completa.
+
+#### Caso 1: revisar apenas `/login`
+
+Suba apenas o banco e rode o frontend localmente:
+
+```bash
+make db
+cd frontend
+npm run dev
+```
+
+O login usa Better Auth + PostgreSQL diretamente, entao o banco precisa estar
+de pe. A API nao e necessaria para essa tela.
+
+Crie `frontend/.env.local` com:
+
+```bash
+INTERNAL_API_URL=http://localhost:8000
+INTERNAL_SERVICE_TOKEN=dev-token-local
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/whatsapp_langchain
+BETTER_AUTH_SECRET=dev-secret-local-1234567890
+BETTER_AUTH_URL=http://localhost:3000
+ENVIRONMENT=development
+```
+
+#### Caso 2: revisar o painel completo (`/`, `/agents`, `/queue`, `/chats`)
+
+Suba banco + API e rode o frontend localmente:
+
+```bash
+make db
+make migrate   # necessario apenas em banco novo ou apos reset
+INTERNAL_SERVICE_TOKEN=dev-token-local make api
+```
+
+Em outro terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Nesse fluxo:
+- `db` e obrigatorio para Better Auth
+- `api` e obrigatoria para metricas, agentes, fila e conversas
+- `worker` continua opcional para desenvolvimento visual
+
+> `frontend/.env.local` e apenas para desenvolvimento local com `npm run dev`.
+> Docker Compose e ambientes publicados usam as variaveis de ambiente do
+> proprio servico, nao esse arquivo.
+
 ### Subir serviços
 
 ```bash

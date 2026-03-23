@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Sidebar } from "@/components/sidebar";
+import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WhatsApp Admin",
-  description: "Painel administrativo do WhatsApp LangChain",
+  title: "rhawk.pro",
+  description: "Painel administrativo rhawk.pro",
 };
 
 export default function RootLayout({
@@ -28,11 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Sidebar />
-        {/* Conteúdo principal — margem esquerda para a sidebar em desktop */}
-        <main className="min-h-screen md:ml-64 p-6 pt-16 md:pt-6">
-          {children}
-        </main>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -21,7 +22,6 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { href: "/chats", label: "Conversas", icon: MessageSquare },
   { href: "/agents", label: "Agentes", icon: Bot },
   { href: "/queue", label: "Fila", icon: ListOrdered },
-  { href: "/settings", label: "Seguranca", icon: ShieldCheck },
+  { href: "/settings", label: "Segurança", icon: ShieldCheck },
 ];
 
 export function Sidebar() {
@@ -64,7 +64,7 @@ export function Sidebar() {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden"
+        className="fixed top-4 left-4 z-50 md:hidden text-white"
         onClick={() => setOpen(!open)}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -73,33 +73,46 @@ export function Sidebar() {
       {/* Overlay mobile */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — fundo escuro hawk-navy */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r bg-background transition-transform md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar transition-transform md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center px-6 font-semibold">
-          WhatsApp Admin
+        {/* Header com marca */}
+        <div className="flex h-16 items-center gap-3 px-6">
+          <Image src="/logo-hawk.png" alt="rhawk.pro" width={28} height={28} className="rounded" unoptimized />
+          <div>
+            <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">
+              rhawk.pro
+            </span>
+            <span className="block text-[10px] uppercase tracking-[0.15em] text-sidebar-foreground/50">
+              operations
+            </span>
+          </div>
         </div>
-        <Separator />
-        <nav className="flex-1 space-y-1 px-3 py-4">
+
+        {/* Separador sutil */}
+        <div className="mx-4 h-px bg-sidebar-border" />
+
+        {/* Navegação */}
+        <nav className="flex-1 space-y-0.5 px-3 py-4">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150",
                 isActive(item.href)
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                  ? "bg-sidebar-accent text-hawk-blue font-medium shadow-sm"
+                  : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -107,18 +120,19 @@ export function Sidebar() {
             </Link>
           ))}
         </nav>
+
+        {/* Footer */}
         <div className="px-3 pb-4">
-          <Separator className="mb-3" />
-          <Button
+          <div className="mx-1 mb-3 h-px bg-sidebar-border" />
+          <button
             type="button"
-            variant="ghost"
-            className="w-full justify-start gap-3"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground disabled:opacity-50"
             onClick={handleSignOut}
             disabled={signingOut}
           >
             <LogOut className="h-4 w-4" />
             {signingOut ? "Saindo..." : "Sair"}
-          </Button>
+          </button>
         </div>
       </aside>
     </>

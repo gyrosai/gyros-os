@@ -5,13 +5,14 @@ documentos detalhados de operação.
 
 ## Estado atual
 
-Na Fase 4, o projeto já cobre:
+Na Fase 5, o projeto já cobre:
 - API FastAPI pública para `POST /webhook/twilio`
 - Worker assíncrono com envio outbound via Twilio
 - Frontend/admin panel em Next.js com Better Auth
 - PostgreSQL com pgvector
 - deploy de referência em Railway
 - stress testing e leitura de gargalos
+- docs rewrite com separação clara sandbox/produção, branding mínimo e microaula
 
 ## Topologia alvo
 
@@ -92,6 +93,39 @@ Worker -> Twilio (outbound)
 - a resposta chega ao WhatsApp antes de `mark_done`
 - o Frontend acessa `/api/*` apenas via `INTERNAL_SERVICE_TOKEN`
 - não existe bootstrap automático de admin previsível em production
+
+### Cutover: sandbox → produção
+
+Referência detalhada em [TWILIO.md — Parte B](TWILIO.md#parte-b--número-real--produção).
+
+Resumo dos passos críticos:
+
+1. Adquirir número WhatsApp Business no Twilio
+2. Atualizar `TWILIO_FROM_NUMBER` com o número real
+3. Atualizar `TWILIO_WEBHOOK_URL` com o domínio Railway da API
+4. Habilitar `VALIDATE_TWILIO_SIGNATURE=true`
+5. Configurar webhook no Twilio Console (Messaging → WhatsApp Senders)
+6. Testar envio e recebimento com número real
+7. Validar assinatura em produção
+
+### Rollback
+
+Três níveis de rollback disponíveis:
+
+**Nível 1 — Rollback de deploy (Railway)**
+- Railway mantém histórico de deploys por serviço
+- No dashboard: Service → Deployments → selecionar deploy anterior → Redeploy
+- Útil quando um deploy quebrou a API ou o Worker
+
+**Nível 2 — Rollback Twilio (produção → sandbox)**
+- Reconfigurar webhook no Twilio Console para apontar de volta ao túnel local
+- Reverter `TWILIO_FROM_NUMBER` para o número do sandbox
+- Reverter `VALIDATE_TWILIO_SIGNATURE=false` se necessário
+- Detalhes em [TWILIO.md — Troubleshooting](TWILIO.md#rollback-produção--sandbox)
+
+**Nível 3 — Rollback completo**
+- Combina nível 1 + nível 2
+- Usar quando tanto o deploy quanto a configuração Twilio precisam reverter
 
 ## Notas operacionais
 
