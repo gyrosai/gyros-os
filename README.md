@@ -12,11 +12,8 @@ O objetivo deste repositório é ensinar arquitetura de sistemas em volta do age
 - persistência de contexto e memória
 - observabilidade, retries e limites
 
-## Fase Atual
+## O que o projeto inclui
 
-**Fase 5 em andamento neste branch.**
-
-Base já consolidada da Fase 3:
 - API FastAPI com webhook Twilio assíncrono (`/webhook/twilio`)
 - fila em PostgreSQL com debounce e retry
 - worker assíncrono para processamento LangGraph
@@ -34,23 +31,20 @@ Base já consolidada da Fase 3:
 - envio real de resposta via Twilio Messages API
 - typing indicator via Twilio antes do processamento
 - documentação de sandbox/webhook/túnel com cloudflared
-
-Já adicionado na Fase 4:
 - frontend/admin panel integrado neste repositório
 - autenticação via Better Auth no mesmo PostgreSQL
 - proteção das rotas administrativas com `INTERNAL_SERVICE_TOKEN`
 - deploy documentado para Railway
 - documentação e artefatos de stress testing
-
-Já adicionado na Fase 5:
 - documentação de integração Twilio reescrita (sandbox vs produção separados)
 - checklist de cutover sandbox → produção
 - rollback documentado (deploy e Twilio)
 - branding mínimo da rhawk.pro no painel (favicon, cores, metadados)
 
-Pendência principal para fechamento operacional:
-- cutover real com número Twilio final (INT-484)
-- smoke e2e real com sender definitivo em ambiente publicado
+O template foi desenhado para funcionar tanto em desenvolvimento local
+(`sandbox`/`mock`) quanto em ambiente publicado com Twilio real. Para o fluxo
+de cutover para número real, veja [Integração Twilio](docs/TWILIO.md) e
+[Deploy](docs/DEPLOY.md).
 
 ## Arquitetura
 
@@ -93,7 +87,7 @@ mesmo em desenvolvimento local para o painel administrativo funcionar.
 
 ```bash
 make up
-# sobe: db + api + worker
+# sobe: db + api + worker + frontend
 ```
 
 Para validar envio real pelo Twilio, mude `TWILIO_OUTBOUND_MODE=real` e
@@ -191,14 +185,6 @@ make logs
 make reset
 make test-demo
 ```
-
-## Roadmap
-
-- **Fase 1** concluída: base de agentes + middleware de contexto
-- **Fase 2** concluída: API + Worker + PostgreSQL + observabilidade operacional
-- **Fase 3** concluída: integração Twilio + assinatura real + typing + reforço dos testes de debounce
-- **Fase 4** concluída: frontend/admin panel + deploy Railway + stress testing
-- **Fase 5** em andamento: documentação go-live, branding mínimo, cutover real
 
 ## Licença
 
