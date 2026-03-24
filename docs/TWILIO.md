@@ -250,9 +250,40 @@ Requer aprovação da Meta e deploy em ambiente publicado (Railway).
 
 ### Pré-requisitos
 
-- Conta Twilio com billing ativo (não trial)
+- Conta Twilio **upgraded** com billing ativo (trial não é suficiente para sender real)
 - Conta Meta Business verificada
+- Usuário com **controle total / admin** no Meta Business Portfolio que será usado no onboarding
 - Número de telefone dedicado (não pode estar registrado em outro WhatsApp)
+
+### Como validar os pré-requisitos antes de começar
+
+#### 1. Confirmar que a conta Twilio saiu de trial
+
+No Twilio Console:
+- se ainda aparecer o badge `Trial`, a conta ainda não está pronta para número real
+- o upgrade deve ser concluído antes de seguir com `WhatsApp Senders`
+
+#### 2. Confirmar acesso administrativo no Meta Business Portfolio
+
+Na Meta Business Suite:
+1. Abra **Configurações**
+2. Vá em **Usuários → Pessoas**
+3. Localize seu usuário
+4. Confirme que o acesso aparece como **Controle total** ou equivalente de admin
+
+Sem esse nível de acesso, o fluxo de self sign-up do Twilio pode travar ao tentar:
+- vincular o Business Portfolio
+- acessar ativos do negócio
+- concluir a configuração do sender
+
+#### 3. Confirmar que o número está livre para a plataforma
+
+O número que será usado no sender real:
+- não deve estar ativo no app **WhatsApp**
+- não deve estar ativo no app **WhatsApp Business**
+- deve conseguir receber OTP por SMS ou ligação durante o onboarding
+
+Se o número já estiver registrado no app, a ativação no Twilio/Meta pode falhar.
 
 ### Passo a passo
 
