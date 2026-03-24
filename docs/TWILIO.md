@@ -379,7 +379,7 @@ curl https://api-production.up.railway.app/health
 - [ ] Admin panel acessível via `/login` em produção
 - [ ] `INTERNAL_SERVICE_TOKEN` configurado com valor forte em produção
 - [ ] `BETTER_AUTH_SECRET` configurado com valor forte em produção
-- [ ] Primeiro admin criado com credenciais fortes (não as defaults do curso)
+- [ ] `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidos no Frontend, primeiro login validado e senha trocada em `/settings`
 
 ### Execução do cutover
 

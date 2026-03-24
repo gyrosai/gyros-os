@@ -119,8 +119,9 @@ export function LoginForm({
 
           {showBootstrapHint && (
             <div className="mb-4 rounded-lg bg-primary/5 border border-primary/10 px-4 py-3 text-sm text-muted-foreground">
-              Usuário inicial criado automaticamente. Entre e troque a senha em
-              <strong> /settings</strong>.
+              Primeiro admin criado automaticamente a partir de
+              <strong> ADMIN_EMAIL</strong> e <strong>ADMIN_PASSWORD</strong>.
+              Entre e troque a senha em <strong>/settings</strong>.
             </div>
           )}
 

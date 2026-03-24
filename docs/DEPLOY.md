@@ -75,6 +75,8 @@ Worker -> Twilio (outbound)
 - `INTERNAL_SERVICE_TOKEN`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
 
 ## Fluxo recomendado de publicacao
 
@@ -82,7 +84,7 @@ Worker -> Twilio (outbound)
 2. Configurar as variáveis de ambiente por serviço.
 3. Publicar domínio da API e do Frontend.
 4. Configurar o webhook do Twilio apontando para `https://<api>/webhook/twilio?agent=rhawk_assistant`.
-5. Criar o primeiro admin manualmente com credenciais fortes, validar o login no painel e rotacionar a senha se necessário.
+5. Definir `ADMIN_EMAIL` e `ADMIN_PASSWORD` no Frontend, acessar `/login`, validar o bootstrap automático do primeiro admin e trocar a senha em `/settings`.
 6. Executar smoke tests de API, painel e mensagem real no WhatsApp.
 
 ## Checklist de verificação
@@ -93,7 +95,7 @@ Worker -> Twilio (outbound)
 - `message_queue` recebe mensagens e o worker faz `queued -> processing -> done|failed`
 - a resposta chega ao WhatsApp antes de `mark_done`
 - o Frontend acessa `/api/*` apenas via `INTERNAL_SERVICE_TOKEN`
-- não existe bootstrap automático de admin previsível em production
+- não existe endpoint público de signup habilitado em production
 
 ### Cutover: sandbox → produção
 
@@ -133,5 +135,5 @@ Três níveis de rollback disponíveis:
 - Em `ENVIRONMENT=production`, o endpoint `/webhook/sync` fica desabilitado.
 - `TWILIO_OUTBOUND_MODE=mock` e útil para desenvolvimento local e stress test sem custo real.
 - Em qualquer ambiente, o painel falha cedo se `INTERNAL_SERVICE_TOKEN` ou `BETTER_AUTH_SECRET` estiverem ausentes; em production, também exige valores fortes.
-- O primeiro admin deve ser criado via `frontend/scripts/seed-admin.ts` com `ADMIN_EMAIL` e `ADMIN_PASSWORD` explícitos.
+- Se `auth."user"` estiver vazio, o primeiro acesso ao `/login` cria o admin automaticamente a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
 - O guia detalhado de Railway fica em [RAILWAY.md](RAILWAY.md); este arquivo é a visão geral.

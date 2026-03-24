@@ -10,7 +10,6 @@ import { createAuthClient } from "better-auth/react";
 export const {
   changePassword,
   signIn,
-  signUp,
   signOut,
   useSession,
 } = createAuthClient();

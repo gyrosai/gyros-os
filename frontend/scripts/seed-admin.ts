@@ -2,85 +2,45 @@
  * Script para criar o primeiro usuario admin.
  *
  * Em um deploy limpo nao existe usuario — este script cria o admin inicial
- * usando a API do Better Auth diretamente (sem precisar de signup no frontend).
+ * diretamente no schema auth, usando o mesmo formato de hash do Better Auth.
  *
  * Uso:
  *   npx tsx scripts/seed-admin.ts
  *
- * Defaults educacionais:
- *   email: ronnald@rhawk.pro
- *   senha: meuSistema
- *
- * Variaveis de ambiente opcionais:
- *   ADMIN_EMAIL    — sobrescreve o email padrao
- *   ADMIN_PASSWORD — sobrescreve a senha padrao (minimo 8 caracteres)
- *   DATABASE_URL, BETTER_AUTH_SECRET (mesmas do frontend)
+ * Variaveis de ambiente necessarias:
+ *   ADMIN_EMAIL
+ *   ADMIN_PASSWORD
+ *   DATABASE_URL
  *
  * Opcionais:
  *   ADMIN_NAME — nome de exibicao (default: "Admin")
  *
- * O script e idempotente: se o email ja existe, nao cria duplicata.
+ * O script e idempotente: se ja existir pelo menos um usuario, nao cria nada.
  */
 
-import { auth } from "../src/lib/auth";
-import {
-  DEFAULT_ADMIN_EMAIL,
-  DEFAULT_ADMIN_NAME,
-  DEFAULT_ADMIN_PASSWORD,
-} from "../src/lib/admin-defaults";
-import { isProductionEnvironment } from "../src/lib/runtime-config";
-
-const ADMIN_EMAIL: string = process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
-const ADMIN_PASSWORD: string =
-  process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-const ADMIN_NAME: string = process.env.ADMIN_NAME || DEFAULT_ADMIN_NAME;
+import { ensureBootstrapAdmin } from "../src/lib/bootstrap-admin-core";
 
 async function main() {
-  console.log(`Criando admin: ${ADMIN_EMAIL}`);
-
-  if (
-    isProductionEnvironment() &&
-    (ADMIN_EMAIL === DEFAULT_ADMIN_EMAIL ||
-      ADMIN_PASSWORD === DEFAULT_ADMIN_PASSWORD)
-  ) {
-    console.error(
-      "Em production, defina ADMIN_EMAIL e ADMIN_PASSWORD explicitos antes de rodar o seed."
-    );
-    process.exit(1);
-  }
-
-  if (
-    ADMIN_EMAIL === DEFAULT_ADMIN_EMAIL &&
-    ADMIN_PASSWORD === DEFAULT_ADMIN_PASSWORD
-  ) {
-    console.log(
-      "Usando credenciais padrao do curso. Recomenda-se trocar em ambientes nao educacionais."
-    );
-  }
+  console.log("Verificando bootstrap do primeiro admin...");
 
   try {
-    const result = await auth.api.signUpEmail({
-      body: {
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-        name: ADMIN_NAME,
-      },
-    });
+    const result = await ensureBootstrapAdmin();
 
-    if (result.user) {
-      console.log(`Admin criado com sucesso: ${result.user.email}`);
-    } else {
-      console.log("Resultado inesperado:", result);
+    if (!result.bootstrapConfigured) {
+      console.error(
+        "Defina ADMIN_EMAIL e ADMIN_PASSWORD antes de rodar o seed."
+      );
+      process.exit(1);
     }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
 
-    // Better Auth retorna erro se o email ja existe
-    if (message.includes("already") || message.includes("exists")) {
-      console.log(`Admin ${ADMIN_EMAIL} ja existe — nada a fazer.`);
+    if (result.bootstrapped) {
+      console.log(`Admin criado com sucesso: ${result.bootstrapEmail}`);
       return;
     }
 
+    console.log("Ja existe pelo menos um usuario em auth.user — nada a fazer.");
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("Erro ao criar admin:", message);
     process.exit(1);
   }

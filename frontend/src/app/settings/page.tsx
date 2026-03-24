@@ -15,9 +15,10 @@ export default async function SettingsPage() {
       </div>
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-950">
-        Em ambientes educacionais, o seed inicial pode usar credenciais padrão.
-        Em qualquer ambiente compartilhado ou de produção, altere a senha logo
-        no primeiro acesso.
+        No primeiro acesso, o painel pode criar o admin a partir de
+        `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidos no ambiente. Depois de
+        validar o acesso, altere a senha imediatamente em qualquer ambiente
+        compartilhado ou de produção.
       </div>
 
       <ChangePasswordForm email={session.user.email} />

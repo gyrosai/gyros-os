@@ -314,31 +314,38 @@ Abaixo estão todas as variáveis necessárias, organizadas por serviço.
 | `INTERNAL_SERVICE_TOKEN` | --- | Token para autenticar nas rotas `/api/*` **(shared com API)** |
 | `BETTER_AUTH_SECRET` | --- | Secret para sessões do Better Auth (gerar com `openssl rand -base64 32`) |
 | `BETTER_AUTH_URL` | `https://frontend-*.up.railway.app` | URL pública do Frontend (usada pelo Better Auth para callbacks) |
+| `ADMIN_EMAIL` | `admin@empresa.com` | Email do primeiro acesso ao painel |
+| `ADMIN_PASSWORD` | --- | Senha do primeiro acesso ao painel; troque após o login inicial |
+| `ADMIN_NAME` | `Admin` | Nome exibido do primeiro usuário (opcional) |
 | `RAILWAY_DOCKERFILE_PATH` | `Dockerfile.frontend` | Aponta para o Dockerfile do Frontend |
 
 ---
 
 ## Bootstrap do primeiro admin
 
-Em production, o frontend **não** cria mais um admin padrão automaticamente.
-O primeiro usuário deve ser criado manualmente, com credenciais explícitas.
+Se `auth."user"` estiver vazio, o primeiro acesso ao `/login` cria
+automaticamente o primeiro admin usando `ADMIN_EMAIL` e `ADMIN_PASSWORD`
+definidos no serviço `frontend`.
 
-Exemplo:
+Fluxo recomendado:
 
 ```bash
-cd frontend
-ENVIRONMENT=production \
-ADMIN_EMAIL=admin@empresa.com \
-ADMIN_PASSWORD='uma-senha-forte-aqui' \
-npx tsx scripts/seed-admin.ts
+# Service: frontend
+ADMIN_EMAIL=admin@empresa.com
+ADMIN_PASSWORD=uma-senha-forte-aqui
+ADMIN_NAME=Admin
 ```
 
-Depois do seed:
+Depois disso:
 - entre pelo `/login`
 - valide acesso ao painel
-- troque a senha se necessário no `/settings`
+- troque a senha no `/settings`
 
-> O script rejeita as credenciais padrão do curso quando `ENVIRONMENT=production`.
+Opcional em ambientes compartilhados:
+- remova ou rotacione `ADMIN_PASSWORD` depois do primeiro login
+
+> O signup público do Better Auth fica desabilitado e as rotas `/api/auth/sign-up/*`
+> retornam `404`.
 > O frontend também falha cedo em production se `INTERNAL_SERVICE_TOKEN` ou
 > `BETTER_AUTH_SECRET` estiverem fracos.
 
@@ -360,6 +367,7 @@ Depois do seed:
 12. Adicionar volume ao serviço DB (`/var/lib/postgresql/data`)
 13. Verificar migrações (rodam automaticamente no startup da API --- checar logs por `migration_applying`)
 14. Testar health check: `GET https://api-*.up.railway.app/health`
-15. Rodar seed manual do primeiro admin com credenciais fortes
+15. Definir `ADMIN_EMAIL` e `ADMIN_PASSWORD` no serviço `frontend`
+16. Acessar `/login`, validar o bootstrap automático do primeiro admin e trocar a senha
 16. Testar login no painel e navegação completa
 17. Testar fluxo completo: mensagem WhatsApp -> fila -> worker -> resposta

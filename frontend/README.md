@@ -23,11 +23,16 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/whatsapp_langchain
 BETTER_AUTH_SECRET=dev-secret-local-1234567890
 BETTER_AUTH_URL=http://localhost:3000
 ENVIRONMENT=development
+ADMIN_EMAIL=admin@localhost
+ADMIN_PASSWORD=troque-esta-senha
 ```
 
 Observacoes:
 - `INTERNAL_SERVICE_TOKEN` pode ser qualquer valor nao-vazio em desenvolvimento
 - `BETTER_AUTH_SECRET` tambem pode ser qualquer valor nao-vazio em desenvolvimento
+- se `auth."user"` estiver vazio, o primeiro acesso ao `/login` cria o admin
+  usando `ADMIN_EMAIL` e `ADMIN_PASSWORD`
+- depois do primeiro login, troque a senha em `/settings`
 - esse arquivo e usado apenas por `npm run dev`
 - Docker Compose e ambientes publicados usam env vars do proprio servico
 
