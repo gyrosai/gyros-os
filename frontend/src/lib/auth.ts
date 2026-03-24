@@ -23,6 +23,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    disableSignUp: true,
   },
 
   // nextCookies permite que Server Actions e Route Handlers

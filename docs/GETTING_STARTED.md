@@ -95,7 +95,13 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/whatsapp_langchain
 BETTER_AUTH_SECRET=dev-secret-local-1234567890
 BETTER_AUTH_URL=http://localhost:3000
 ENVIRONMENT=development
+ADMIN_EMAIL=admin@localhost
+ADMIN_PASSWORD=troque-esta-senha
 ```
+
+Se `auth."user"` estiver vazio, o frontend cria automaticamente o primeiro
+admin no acesso ao `/login` usando `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
+Depois, troque a senha em `/settings`.
 
 #### Caso 2: revisar o painel completo (`/`, `/agents`, `/queue`, `/chats`)
 
