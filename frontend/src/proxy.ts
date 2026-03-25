@@ -24,6 +24,6 @@ export function proxy(request: NextRequest) {
 // Protege todas as rotas do painel exceto login, API e arquivos estáticos
 export const config = {
   matcher: [
-    "/((?!login|api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)$).*)",
   ],
 };
