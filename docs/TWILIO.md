@@ -358,6 +358,10 @@ Diferente do sandbox, o webhook de produção é configurado em outro lugar do C
 4. Salve
 
 > No sandbox, o webhook fica em "Sandbox Settings". Em produção, fica nas configurações do sender específico.
+> Importante: no Console da Twilio, o sender usa a **URL completa** com
+> `/webhook/twilio?agent=...`. Ja a env `TWILIO_WEBHOOK_URL` na API deve conter
+> **apenas a base publica** (`https://api-production.up.railway.app`), sem path
+> e sem barra final. Misturar esses dois valores quebra a validacao de assinatura.
 
 ### Validar o webhook
 
@@ -577,8 +581,15 @@ Causas mais comuns:
    - Correto: `https://api-production.up.railway.app`
    - Errado: `https://api-production.up.railway.app/` (barra final)
    - Errado: `https://api-production.up.railway.app/webhook/twilio` (com path)
-2. **Redeploy alterou o domínio**: se o Railway gerou novo domínio, atualize `TWILIO_WEBHOOK_URL`
-3. **Auth Token desatualizado**: se você regenerou o Auth Token no Twilio Console, atualize no Railway
+2. **Webhook salvo no sender com URL divergente**: no Twilio Console, o campo
+   **Webhook URL for incoming messages** precisa apontar para a URL completa do
+   sender:
+   - Correto: `https://api-production.up.railway.app/webhook/twilio?agent=rhawk_assistant`
+   - Errado: deixar vazio, usar outro dominio ou esquecer o query param `agent=...`
+3. **Redeploy alterou o domínio**: se o Railway gerou novo domínio, atualize
+   tanto `TWILIO_WEBHOOK_URL` na API quanto o webhook salvo no sender da Twilio
+4. **Auth Token desatualizado**: se você regenerou o Auth Token no Twilio Console,
+   atualize no Railway
 
 ### Mensagem não chega em produção
 
