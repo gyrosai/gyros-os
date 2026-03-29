@@ -32,6 +32,7 @@ logger = structlog.get_logger()
 TWILIO_MESSAGES_URL = (
     "https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
 )
+TWILIO_MESSAGE_BODY_LIMIT = 1600
 
 # URL do endpoint de typing indicator (Public Beta, out/2025)
 # Marca mensagem como lida + exibe "digitando..." por até 25s
@@ -123,48 +124,72 @@ class TwilioClient:
         Raises:
             TwilioSendError: Se a API retornar erro (4xx/5xx).
         """
-        if self.delivery_mode == "mock":
-            message_sid = f"SM{uuid.uuid4().hex}"
+        chunks = split_message_body(body)
+        chunk_count = len(chunks)
+
+        if chunk_count > 1:
             logger.info(
-                "twilio_message_mocked",
+                "twilio_message_chunked",
                 to=to,
-                sid=message_sid,
-                body_length=len(body),
+                original_length=len(body),
+                chunk_count=chunk_count,
             )
-            return message_sid
 
+        if self.delivery_mode == "mock":
+            last_sid = ""
+            for idx, chunk in enumerate(chunks, start=1):
+                last_sid = f"SM{uuid.uuid4().hex}"
+                logger.info(
+                    "twilio_message_mocked",
+                    to=to,
+                    sid=last_sid,
+                    body_length=len(chunk),
+                    chunk_index=idx,
+                    chunk_count=chunk_count,
+                )
+            return last_sid
+
+        last_sid = ""
         async with httpx.AsyncClient() as http:
-            response = await http.post(
-                self.messages_url,
-                auth=(self.api_key_sid, self.api_key_secret),
-                data={
-                    "From": self.from_number,
-                    "To": f"whatsapp:{to}",
-                    "Body": body,
-                },
-                timeout=15.0,
-            )
+            for idx, chunk in enumerate(chunks, start=1):
+                response = await http.post(
+                    self.messages_url,
+                    auth=(self.api_key_sid, self.api_key_secret),
+                    data={
+                        "From": self.from_number,
+                        "To": f"whatsapp:{to}",
+                        "Body": chunk,
+                    },
+                    timeout=15.0,
+                )
 
-        if not response.is_success:
-            detail = response.text[:500]
-            logger.error(
-                "twilio_send_failed",
-                to=to,
-                status_code=response.status_code,
-                detail=detail,
-            )
-            raise TwilioSendError(response.status_code, detail)
+                if not response.is_success:
+                    detail = response.text[:500]
+                    logger.error(
+                        "twilio_send_failed",
+                        to=to,
+                        status_code=response.status_code,
+                        detail=detail,
+                        chunk_index=idx,
+                        chunk_count=chunk_count,
+                        body_length=len(chunk),
+                    )
+                    raise TwilioSendError(response.status_code, detail)
 
-        data = response.json()
-        message_sid = data["sid"]
+                data = response.json()
+                last_sid = data["sid"]
 
-        logger.info(
-            "twilio_message_sent",
-            to=to,
-            sid=message_sid,
-            status=data.get("status"),
-        )
-        return message_sid
+                logger.info(
+                    "twilio_message_sent",
+                    to=to,
+                    sid=last_sid,
+                    status=data.get("status"),
+                    body_length=len(chunk),
+                    chunk_index=idx,
+                    chunk_count=chunk_count,
+                )
+
+        return last_sid
 
     async def send_typing(self, to: str, message_sid: str | None = None) -> bool:
         """Envia indicador de digitação via Twilio (Public Beta, out/2025).
@@ -226,3 +251,46 @@ class TwilioClient:
         except Exception as exc:
             logger.warning("twilio_typing_error", to=to, error=str(exc))
             return False
+
+
+def split_message_body(
+    body: str, limit: int = TWILIO_MESSAGE_BODY_LIMIT
+) -> list[str]:
+    """Divide mensagens longas em partes seguras para a API do Twilio.
+
+    O Twilio rejeita corpos acima de 1600 caracteres no WhatsApp. A estratégia
+    tenta quebrar em limites naturais (parágrafo, linha, espaço) antes de
+    recorrer a corte bruto.
+    """
+    if limit <= 0:
+        raise ValueError("limit deve ser maior que zero")
+
+    if len(body) <= limit:
+        return [body]
+
+    chunks: list[str] = []
+    remaining = body
+
+    while remaining:
+        if len(remaining) <= limit:
+            chunks.append(remaining)
+            break
+
+        split_at = -1
+        for sep in ("\n\n", "\n", " "):
+            idx = remaining.rfind(sep, 0, limit + 1)
+            if idx > 0:
+                split_at = idx
+                break
+
+        if split_at <= 0:
+            split_at = limit
+
+        chunk = remaining[:split_at].rstrip()
+        if not chunk:
+            chunk = remaining[:limit]
+
+        chunks.append(chunk)
+        remaining = remaining[len(chunk) :].lstrip()
+
+    return chunks
