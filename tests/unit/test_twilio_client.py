@@ -4,6 +4,8 @@ Usa httpx mock para simular respostas da API do Twilio
 sem fazer chamadas HTTP reais.
 """
 
+from urllib.parse import parse_qs
+
 import httpx
 import pytest
 
@@ -223,6 +225,40 @@ class TestSendMessage:
             await client.send_message("+5511999999999", "Olá!")
 
         assert exc_info.value.status_code == 401
+
+    async def test_splits_long_message_across_multiple_requests(
+        self, client, monkeypatch
+    ):
+        """Bodies acima de 1600 chars são enviados em múltiplos chunks."""
+        captured_bodies: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            params = parse_qs(request.content.decode())
+            captured_bodies.append(params["Body"][0])
+            return httpx.Response(
+                201,
+                json={
+                    "sid": f"SM{len(captured_bodies):032d}",
+                    "status": "queued",
+                },
+            )
+
+        transport = httpx.MockTransport(handler)
+        original_init = httpx.AsyncClient.__init__
+
+        def patched_init(self_client, **kwargs):
+            kwargs["transport"] = transport
+            original_init(self_client, **kwargs)
+
+        monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
+
+        long_body = ("bloco de texto " * 140).strip()
+
+        sid = await client.send_message("+5511999999999", long_body)
+
+        assert len(captured_bodies) >= 2
+        assert all(len(chunk) <= 1600 for chunk in captured_bodies)
+        assert sid == f"SM{len(captured_bodies):032d}"
 
 
 class TestSendTyping:
