@@ -30,6 +30,7 @@ ENV/
 
 # Internal docs (planning/architecture - not for end users)
 docs/internal/
+docs/srt/
 
 # Testing
 .pytest_cache/
@@ -56,3 +57,4 @@ frontend/out/
 stress/results_*.csv
 docs/FASE_1_APOIO_VISUAL.excalidraw
 docs/FASE_1_APOIO_VISUAL.md
+patch/
