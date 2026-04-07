@@ -2,7 +2,7 @@
 
 Este guia tem duas trilhas:
 - **Trilha A (agentes):** LangGraph Studio para desenvolver comportamento
-- **Trilha B (sistema):** API + Worker + DB para aprender arquitetura operacional
+- **Trilha B (harness):** API + Worker + DB para aprender arquitetura operacional
 
 ## Pré-requisitos
 
@@ -66,7 +66,7 @@ Arquivos centrais do agente:
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/prompts.py`
 - `src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py`
 
-## 3. Trilha B: stack completo do projeto
+## 3. Trilha B: stack completo do harness
 
 ### Desenvolvimento do frontend sem subir a stack inteira
 
