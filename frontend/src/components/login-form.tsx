@@ -70,7 +70,7 @@ export function LoginForm({
               </span>
             </div>
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-hawk-blue/80">
-              WhatsApp Operations
+              Harness para agentes de WhatsApp
             </p>
           </div>
 
@@ -79,7 +79,7 @@ export function LoginForm({
             Painel de operações
           </h1>
           <p className="max-w-sm text-sm leading-relaxed text-white/40">
-            Métricas, fila de mensagens, conversas e configurações do sistema em uma interface administrativa.
+            Métricas, fila de mensagens, conversas e configurações do harness em uma interface administrativa.
           </p>
         </div>
 

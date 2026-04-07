@@ -1,12 +1,12 @@
 # WhatsApp LangChain
 
-Template educacional e production-ready para construir sistemas de agentes de IA no WhatsApp com LangGraph.
+Harness educacional e production-ready para agentes de WhatsApp com LangGraph.
 
 ## O que é?
 
-Um sistema completo e production-ready que conecta agentes de IA ao WhatsApp. Você define o comportamento do agente com LangChain/LangGraph, e a infraestrutura do projeto cuida do resto: recebimento de mensagens, processamento assíncrono, memória e operação.
+Um harness completo e production-ready que conecta agentes de IA ao WhatsApp. Você define o comportamento do agente com LangChain/LangGraph, e a infraestrutura do projeto cuida do resto: recebimento de mensagens, processamento assíncrono, memória e operação.
 
-O objetivo deste repositório é ensinar arquitetura de sistemas em volta do agente:
+O objetivo deste repositório é ensinar arquitetura de harness em volta do agente:
 - entrada confiável de mensagens
 - processamento assíncrono
 - persistência de contexto e memória
@@ -41,7 +41,7 @@ O objetivo deste repositório é ensinar arquitetura de sistemas em volta do age
 - rollback documentado (deploy e Twilio)
 - branding mínimo da rhawk.pro no painel (favicon, cores, metadados)
 
-O template foi desenhado para funcionar tanto em desenvolvimento local
+O harness foi desenhado para funcionar tanto em desenvolvimento local
 (`sandbox`/`mock`) quanto em ambiente publicado com Twilio real. Para o fluxo
 de cutover para número real, veja [Integração Twilio](docs/TWILIO.md) e
 [Deploy](docs/DEPLOY.md).
@@ -127,7 +127,7 @@ curl -X POST "http://localhost:8000/webhook/twilio?agent=rhawk_assistant" \
   -d "MessageSid=SM123" \
   -d "From=whatsapp:+5511999999999" \
   -d "To=whatsapp:+14155238886" \
-  -d "Body=Quero aprender sistemas de agentes" \
+  -d "Body=Quero aprender harness para agentes" \
   -d "NumMedia=0"
 ```
 
@@ -152,7 +152,7 @@ whatsapp-langchain/
 └── tests/             # Unit e integração
 ```
 
-## Aprendizado (foco em sistemas)
+## Aprendizado (foco em harness)
 
 Este projeto é para aprender decisões de engenharia reais:
 - fronteiras entre serviços (`server`, `worker`, `shared`)

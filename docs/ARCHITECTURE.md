@@ -1,7 +1,7 @@
 # Arquitetura
 
-Este projeto ensina agentes por uma perspectiva de **sistemas**.
-O agente é só uma parte da solução. O valor real está no fluxo completo:
+Este projeto ensina agentes por uma perspectiva de **harness operacional**.
+O agente é só uma parte da solução. O valor real está no harness completo:
 entrada confiável, processamento assíncrono, persistência, recuperação de falhas e inspeção operacional.
 
 ## Estado Atual
@@ -32,7 +32,7 @@ Limitações conhecidas:
 - `NumMedia > 1` no mesmo webhook continua fora do escopo
 - o fechamento operacional completo ainda depende de número real Twilio + smoke final
 
-## Visão de Componentes
+## Visão do Harness
 
 ![Arquitetura](architecture.png)
 
@@ -71,7 +71,7 @@ Limitações conhecidas:
   - user/session/account
 ```
 
-## Fronteiras e Contratos
+## Fronteiras e Contratos do Harness
 
 ### API (`src/whatsapp_langchain/server/`)
 
@@ -183,7 +183,7 @@ Isso separa duas necessidades diferentes:
 - continuidade da conversa atual
 - conhecimento durável sobre o usuário
 
-## Controles Operacionais
+## Controles do Harness
 
 ### Debounce
 
@@ -218,7 +218,7 @@ Logs estruturados com `structlog` em todos os componentes.
 - `GET /api/chats/{phone_number}`
 - `GET /api/metrics`
 
-## Decisões Arquiteturais (didáticas)
+## Decisões do Harness (didáticas)
 
 - PostgreSQL como fila: reduz moving parts no início.
 - API e Worker separados: isola latência da IA da borda HTTP.
@@ -227,7 +227,7 @@ Logs estruturados com `structlog` em todos os componentes.
 - Middleware explícito: torna política de contexto auditável.
 - Memória por tools explícitas: separa contexto transiente (middleware) de memória durável (store).
 
-## Próximos passos de arquitetura
+## Próximos passos do Harness
 
 - fechar o teste e2e real com número Twilio final
 - endurecer operação multi-instância (rate limit distribuído)

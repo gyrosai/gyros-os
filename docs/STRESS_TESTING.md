@@ -2,7 +2,7 @@
 
 ## Por que testar carga?
 
-Testes unitários validam que cada função faz o que deveria. Testes de carga validam que o **sistema inteiro** sobrevive quando muitos usuários chegam ao mesmo tempo.
+Testes unitários validam que cada função faz o que deveria. Testes de carga validam que o **harness inteiro** sobrevive quando muitos usuários chegam ao mesmo tempo.
 
 Sem testes de carga, você só descobre gargalos em produção — quando já é tarde demais. Com eles, você pode:
 
@@ -15,7 +15,7 @@ Sem testes de carga, você só descobre gargalos em produção — quando já é
 
 | Aspecto | Teste unitário | Teste de carga |
 |---------|---------------|----------------|
-| Escopo | Uma função/módulo | Sistema completo |
+| Escopo | Uma função/módulo | Harness completo |
 | Objetivo | Corretude lógica | Performance e estabilidade |
 | Duração | Milissegundos | Minutos |
 | Dependências | Mockadas | Reais (DB, API, LLM) |
@@ -173,7 +173,7 @@ Quando os resultados não estão bons, use esta tabela para diagnosticar:
 
 1. **Educacional local**: rode o cenário Baseline com a stack Docker completa e observe o comportamento da fila assíncrona — como a API enfileira rápido e o Worker drena no ritmo do LLM. Este é o melhor exercício para entender *por que* filas assíncronas existem.
 
-2. **Validação operacional**: rode o cenário async com assinatura válida contra o Railway real antes de ir para produção. Valide que o sistema aguenta a carga esperada sem acumular backlog na fila.
+2. **Validação operacional**: rode o cenário async com assinatura válida contra o Railway real antes de ir para produção. Valide que o harness aguenta a carga esperada sem acumular backlog na fila.
 
 ---
 
