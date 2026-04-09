@@ -7,6 +7,7 @@ Harness educacional e production-ready para agentes de WhatsApp com LangGraph.
 Um harness completo e production-ready que conecta agentes de IA ao WhatsApp. Você define o comportamento do agente com LangChain/LangGraph, e a infraestrutura do projeto cuida do resto: recebimento de mensagens, processamento assíncrono, memória e operação.
 
 O objetivo deste repositório é ensinar arquitetura de harness em volta do agente:
+
 - entrada confiável de mensagens
 - processamento assíncrono
 - persistência de contexto e memória
@@ -101,8 +102,8 @@ de webhook público, veja [Integração Twilio](docs/TWILIO.md).
 Use estes dados de conexão PostgreSQL:
 
 - Host: `localhost`
-- Port: `5432`
-- Database: `whatsapp_langchain`
+- Port: `5433`
+- Database: `gyros_os`
 - User: `postgres`
 - Password: `postgres`
 
@@ -142,7 +143,7 @@ curl http://localhost:8000/api/chats
 
 ```text
 whatsapp-langchain/
-├── src/whatsapp_langchain/
+├── src/gyros_os/
 │   ├── agents/        # Catálogo de agentes, middleware e tools
 │   ├── server/        # API FastAPI (webhooks + admin APIs)
 │   ├── worker/        # Loop consumidor da fila e execução dos agentes
@@ -155,6 +156,7 @@ whatsapp-langchain/
 ## Aprendizado (foco em harness)
 
 Este projeto é para aprender decisões de engenharia reais:
+
 - fronteiras entre serviços (`server`, `worker`, `shared`)
 - contratos de dados (`MessageQueue`, `Conversation`, webhook payload)
 - estados e transições (`queued -> processing -> done/failed`)
@@ -162,14 +164,13 @@ Este projeto é para aprender decisões de engenharia reais:
 - limites e custo (rate limit HTTP e rate limit de LLM)
 
 Para detalhes técnicos:
+
 - [Arquitetura](docs/ARCHITECTURE.md)
 - [Primeiros Passos](docs/GETTING_STARTED.md)
 - [Criando Agentes](docs/ADDING_AGENTS.md)
 - [Banco de Dados](docs/DATABASE.md)
 - [Integração Twilio](docs/TWILIO.md)
 - [Deploy](docs/DEPLOY.md)
-
-
 
 ## Comandos úteis
 

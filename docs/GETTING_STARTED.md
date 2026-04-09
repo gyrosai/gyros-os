@@ -1,6 +1,7 @@
 # Primeiros Passos
 
 Este guia tem duas trilhas:
+
 - **Trilha A (agentes):** LangGraph Studio para desenvolver comportamento
 - **Trilha B (harness):** API + Worker + DB para aprender arquitetura operacional
 
@@ -62,9 +63,10 @@ make dev
 O grafo padrão é `rhawk_assistant`, registrado em `langgraph.json`.
 
 Arquivos centrais do agente:
-- `src/whatsapp_langchain/agents/catalog/rhawk_assistant/agent.py`
-- `src/whatsapp_langchain/agents/catalog/rhawk_assistant/prompts.py`
-- `src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py`
+
+- `src/gyros_os/agents/catalog/rhawk_assistant/agent.py`
+- `src/gyros_os/agents/catalog/rhawk_assistant/prompts.py`
+- `src/gyros_os/agents/catalog/rhawk_assistant/graph.py`
 
 ## 3. Trilha B: stack completo do harness
 
@@ -91,7 +93,7 @@ Crie `frontend/.env.local` com:
 ```bash
 INTERNAL_API_URL=http://localhost:8000
 INTERNAL_SERVICE_TOKEN=dev-token-local
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/whatsapp_langchain
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/gyros_os
 BETTER_AUTH_SECRET=dev-secret-local-1234567890
 BETTER_AUTH_URL=http://localhost:3000
 ENVIRONMENT=development
@@ -121,6 +123,7 @@ npm run dev
 ```
 
 Nesse fluxo:
+
 - `db` e obrigatorio para Better Auth
 - `api` e obrigatoria para metricas, agentes, fila e conversas
 - `worker` continua opcional para desenvolvimento visual
@@ -136,6 +139,7 @@ make up
 ```
 
 Isso sobe:
+
 - `db` (PostgreSQL + pgvector)
 - `api` (FastAPI)
 - `worker` (consumidor da fila; em dev usa Twilio mock por default)
