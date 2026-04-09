@@ -100,6 +100,11 @@ class Settings(BaseSettings):
     # Preencha também em desenvolvimento; em produção, use um token forte.
     internal_service_token: str = ""
 
+    # --- Gyros OS: RAG & Integrations ---
+    openai_api_key: str = ""
+    fireflies_api_key: str = ""
+    fireflies_webhook_secret: str = ""
+
     # --- Semantic Memory (LangGraph Store) ---
     memory_enabled: bool = True
     # Nome do modelo no OpenRouter (sem prefixo "openai:")
