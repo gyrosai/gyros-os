@@ -11,7 +11,7 @@ import time
 
 import httpx
 import structlog
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
 from gyros_os.shared.config import settings
 
@@ -65,7 +65,8 @@ class FirefliesSentence(BaseModel):
 class FirefliesSummary(BaseModel):
     """Summary section of a Fireflies transcript.
 
-    All string fields — Fireflies returns markdown, not structured lists.
+    All fields normalized to str — Fireflies inconsistently returns
+    some as str and others as list[str] depending on re-generation.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -74,6 +75,26 @@ class FirefliesSummary(BaseModel):
     action_items: str | None = None
     outline: str | None = None
     overview: str | None = None
+    shorthand_bullet: str | None = None
+    gist: str | None = None
+    bullet_gist: str | None = None
+    short_summary: str | None = None
+
+    @field_validator(
+        "keywords", "action_items", "outline", "overview",
+        "shorthand_bullet", "gist", "bullet_gist", "short_summary",
+        mode="before",
+    )
+    @classmethod
+    def coerce_to_string(cls, v):
+        """Normalize str | list[str] | Any → str."""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return ", ".join(str(item) for item in v)
+        if isinstance(v, str):
+            return v
+        return str(v)
 
 
 class FirefliesTranscript(BaseModel):
