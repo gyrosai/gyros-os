@@ -7,6 +7,7 @@ entrada confiável, processamento assíncrono, persistência, recuperação de f
 ## Estado Atual
 
 Implementado:
+
 - API FastAPI com webhook Twilio assíncrono (`POST /webhook/twilio`)
 - validação criptográfica real de `X-Twilio-Signature` com SDK oficial do Twilio
 - fila em PostgreSQL (`message_queue`) com debounce texto-only, flush antes de mídia e lease
@@ -29,6 +30,7 @@ Implementado:
 - stress testing documentado
 
 Limitações conhecidas:
+
 - `NumMedia > 1` no mesmo webhook continua fora do escopo
 - o fechamento operacional completo ainda depende de número real Twilio + smoke final
 
@@ -73,9 +75,10 @@ Limitações conhecidas:
 
 ## Fronteiras e Contratos do Harness
 
-### API (`src/whatsapp_langchain/server/`)
+### API (`src/gyros_os/server/`)
 
 Responsabilidades:
+
 - aceitar webhook Twilio
 - validar assinatura quando habilitada
 - responder rápido com TwiML vazio
@@ -84,14 +87,16 @@ Responsabilidades:
 - proteger `/api/*` via token interno compartilhado com o frontend
 
 Contratos relevantes:
+
 - `agent` via query string
 - payload form-encoded Twilio (`From`, `To`, `Body`, `NumMedia`, etc)
 - identidade inbound principal em `From`, com fallback para `WaId`
 - `thread_id = "{phone}:{agent}"`
 
-### Worker (`src/whatsapp_langchain/worker/`)
+### Worker (`src/gyros_os/worker/`)
 
 Responsabilidades:
+
 - fazer polling da fila
 - processar mídia se existir
 - enviar typing antes do agente (best-effort)
@@ -101,20 +106,23 @@ Responsabilidades:
 - persistir sucesso/falha, com `mark_done` só após envio confirmado
 
 Contrato de execução do agente:
+
 - `thread_id`: memória de conversa (checkpointer)
 - `user_id`: memória cross-thread (store semântico), derivado do telefone do webhook Twilio
 
 ### Frontend (`frontend/`)
 
 Responsabilidades:
+
 - autenticar administradores com Better Auth
 - consumir rotas administrativas apenas server-side
 - usar `INTERNAL_API_URL` + `INTERNAL_SERVICE_TOKEN` para falar com a API
 - manter tabelas de auth separadas no schema `auth`
 
-### Shared (`src/whatsapp_langchain/shared/`)
+### Shared (`src/gyros_os/shared/`)
 
 Responsabilidades:
+
 - configurações tipadas (`Settings`)
 - pool/migrações
 - operações de fila
@@ -137,6 +145,7 @@ queued -> processing -> done
 ```
 
 Campos importantes:
+
 - `process_after`: debounce e atraso de retry
 - `lease_until`: lock temporal para worker
 - `attempts` / `max_attempts`: governança de retry
@@ -145,6 +154,7 @@ Campos importantes:
 ### `conversations`
 
 Tabela agregada para consultas administrativas.
+
 - chave lógica: `(phone_number, agent_id)`
 - atualizada por `upsert` a cada mensagem concluída
 
@@ -180,6 +190,7 @@ Persistência de mensagens de uma conversa específica (`thread_id`).
 - não usamos escopo `tenant_user`/`tenant_shared` neste projeto
 
 Isso separa duas necessidades diferentes:
+
 - continuidade da conversa atual
 - conhecimento durável sobre o usuário
 
@@ -190,6 +201,7 @@ Isso separa duas necessidades diferentes:
 Agrupa mensagens de texto enviadas em sequência curta (`MESSAGE_BUFFER_SECONDS`) para reduzir custo e ruído.
 
 No estado atual do projeto:
+
 - texto faz debounce
 - mídia não faz debounce
 - antes de inserir mídia, textos pendentes do mesmo `phone+agent` são flushed

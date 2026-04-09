@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from whatsapp_langchain.shared.queue import mark_failed
+from gyros_os.shared.queue import mark_failed
 
 
 class TestRetryBackoff:
@@ -110,7 +110,7 @@ class TestRetryBackoff:
         cursor.fetchone = AsyncMock(return_value=(1, 3))
         conn.execute = AsyncMock(return_value=cursor)
 
-        with patch("whatsapp_langchain.shared.queue.logger.warning") as mock_warning:
+        with patch("gyros_os.shared.queue.logger.warning") as mock_warning:
             await mark_failed(pool, message_id=42, error="timeout")
 
         assert mock_warning.called

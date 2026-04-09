@@ -9,7 +9,7 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from whatsapp_langchain.worker.twilio_client import (
+from gyros_os.worker.twilio_client import (
     TwilioClient,
     TwilioSendError,
 )

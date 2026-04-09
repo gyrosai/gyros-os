@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, patch
 
-from whatsapp_langchain.shared.config import settings
-from whatsapp_langchain.worker.media import (
+from gyros_os.shared.config import settings
+from gyros_os.worker.media import (
     AUTO_RESPONSE_AUDIO_DISABLED,
     AUTO_RESPONSE_IMAGE_DISABLED,
     AUTO_RESPONSE_MEDIA_FAILURE,
@@ -71,11 +71,11 @@ class TestMediaPreprocess:
         with (
             patch.object(settings, "media_image_enabled", True),
             patch(
-                "whatsapp_langchain.worker.media.download_media",
+                "gyros_os.worker.media.download_media",
                 new=AsyncMock(return_value=b"img-bytes"),
             ),
             patch(
-                "whatsapp_langchain.worker.media._describe_image",
+                "gyros_os.worker.media._describe_image",
                 new=AsyncMock(return_value="um diagrama de arquitetura"),
             ),
         ):
@@ -95,7 +95,7 @@ class TestMediaPreprocess:
         with (
             patch.object(settings, "media_audio_enabled", True),
             patch(
-                "whatsapp_langchain.worker.media.download_media",
+                "gyros_os.worker.media.download_media",
                 new=AsyncMock(side_effect=RuntimeError("network error")),
             ),
         ):

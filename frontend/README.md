@@ -19,7 +19,7 @@ Exemplo minimo:
 ```bash
 INTERNAL_API_URL=http://localhost:8000
 INTERNAL_SERVICE_TOKEN=dev-token-local
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/whatsapp_langchain
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/gyros_os
 BETTER_AUTH_SECRET=dev-secret-local-1234567890
 BETTER_AUTH_URL=http://localhost:3000
 ENVIRONMENT=development
@@ -28,6 +28,7 @@ ADMIN_PASSWORD=troque-esta-senha
 ```
 
 Observacoes:
+
 - `INTERNAL_SERVICE_TOKEN` pode ser qualquer valor nao-vazio em desenvolvimento
 - `BETTER_AUTH_SECRET` tambem pode ser qualquer valor nao-vazio em desenvolvimento
 - se `auth."user"` estiver vazio, o primeiro acesso ao `/login` cria o admin
@@ -69,6 +70,7 @@ npm run dev
 ```
 
 Nesse modo:
+
 - `db` e obrigatorio
 - `api` e obrigatoria para paginas que consultam `/api/*`
 - `worker` nao e necessario para revisao visual

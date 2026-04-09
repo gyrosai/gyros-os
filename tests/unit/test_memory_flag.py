@@ -6,8 +6,8 @@ settings.memory_enabled para decidir se criam store.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from whatsapp_langchain.shared.config import settings
-from whatsapp_langchain.worker.media import MediaPreprocessResult
+from gyros_os.shared.config import settings
+from gyros_os.worker.media import MediaPreprocessResult
 
 
 class TestWebhookSyncMemoryFlag:
@@ -38,7 +38,7 @@ class TestProcessorMemoryFlag:
         with (
             patch.object(settings, "memory_enabled", False),
             patch(
-                "whatsapp_langchain.worker.processor.preprocess_incoming_message",
+                "gyros_os.worker.processor.preprocess_incoming_message",
                 new_callable=AsyncMock,
                 return_value=MediaPreprocessResult(
                     should_invoke_agent=True,
@@ -46,13 +46,13 @@ class TestProcessorMemoryFlag:
                     media_processing_status="none",
                 ),
             ) as mock_preprocess,
-            patch("whatsapp_langchain.worker.processor.load_graph") as mock_load,
+            patch("gyros_os.worker.processor.load_graph") as mock_load,
             patch(
-                "whatsapp_langchain.worker.processor.mark_done",
+                "gyros_os.worker.processor.mark_done",
                 new_callable=AsyncMock,
             ) as mock_mark_done,
             patch(
-                "whatsapp_langchain.worker.processor.upsert_conversation",
+                "gyros_os.worker.processor.upsert_conversation",
                 new_callable=AsyncMock,
             ),
         ):
@@ -63,8 +63,8 @@ class TestProcessorMemoryFlag:
             mock_load.return_value = mock_graph
             mock_checkpointer = AsyncMock()
 
-            from whatsapp_langchain.shared.models import MessageQueue
-            from whatsapp_langchain.worker.processor import process_message
+            from gyros_os.shared.models import MessageQueue
+            from gyros_os.worker.processor import process_message
 
             message = MessageQueue(
                 id=1,

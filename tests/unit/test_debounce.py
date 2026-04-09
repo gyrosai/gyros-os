@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from whatsapp_langchain.shared.queue import enqueue_or_buffer
+from gyros_os.shared.queue import enqueue_or_buffer
 
 
 @pytest.fixture

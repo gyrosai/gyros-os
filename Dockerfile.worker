@@ -16,4 +16,4 @@ COPY db/ db/
 # Instala o pacote e dependências de runtime
 RUN uv pip install --system .
 
-CMD ["python", "-m", "whatsapp_langchain.worker.main"]
+CMD ["python", "-m", "gyros_os.worker.main"]

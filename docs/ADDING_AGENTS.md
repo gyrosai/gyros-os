@@ -7,7 +7,7 @@ Este guia define o contrato padrão para novos agentes neste template.
 Cada agente deve viver em:
 
 ```text
-src/whatsapp_langchain/agents/catalog/<agent_id>/
+src/gyros_os/agents/catalog/<agent_id>/
 ├── __init__.py
 ├── agent.py
 ├── graph.py
@@ -26,8 +26,8 @@ src/whatsapp_langchain/agents/catalog/<agent_id>/
 ### 1. Criar estrutura
 
 ```bash
-mkdir -p src/whatsapp_langchain/agents/catalog/meu_agente
-touch src/whatsapp_langchain/agents/catalog/meu_agente/__init__.py
+mkdir -p src/gyros_os/agents/catalog/meu_agente
+touch src/gyros_os/agents/catalog/meu_agente/__init__.py
 ```
 
 ### 2. Criar prompt
@@ -48,9 +48,9 @@ from langchain.agents import create_agent
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 
-from whatsapp_langchain.agents.middleware import get_context_middleware
-from whatsapp_langchain.agents.tools import read_memory, save_memory
-from whatsapp_langchain.shared.llm import create_chat_model
+from gyros_os.agents.middleware import get_context_middleware
+from gyros_os.agents.tools import read_memory, save_memory
+from gyros_os.shared.llm import create_chat_model
 
 from .prompts import SYSTEM_PROMPT
 
@@ -79,7 +79,7 @@ def build_graph(
 # graph.py
 from langgraph.store.memory import InMemoryStore
 
-from whatsapp_langchain.agents.catalog.meu_agente.agent import build_graph
+from gyros_os.agents.catalog.meu_agente.agent import build_graph
 
 store = InMemoryStore()
 graph = build_graph(store=store)
@@ -91,8 +91,8 @@ graph = build_graph(store=store)
 {
   "dependencies": ["."],
   "graphs": {
-    "rhawk_assistant": "./src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py:graph",
-    "meu_agente": "./src/whatsapp_langchain/agents/catalog/meu_agente/graph.py:graph"
+    "rhawk_assistant": "./src/gyros_os/agents/catalog/rhawk_assistant/graph.py:graph",
+    "meu_agente": "./src/gyros_os/agents/catalog/meu_agente/graph.py:graph"
   },
   "env": ".env"
 }
@@ -103,6 +103,7 @@ graph = build_graph(store=store)
 ### Contexto de conversa
 
 `get_context_middleware()` aplica estratégia configurada via `.env`:
+
 - `trim`
 - `summarize`
 - `none`
@@ -110,10 +111,12 @@ graph = build_graph(store=store)
 ### Memória cross-thread
 
 Quando `store` é fornecido:
+
 - tool `save_memory` persiste fatos relevantes do usuário
 - tool `read_memory` recupera memórias relevantes por busca semântica
 
 Para funcionar corretamente, o runtime precisa receber:
+
 - `thread_id` (conversa)
 - `user_id` (identidade do usuário; neste projeto vem do telefone no payload do Twilio)
 

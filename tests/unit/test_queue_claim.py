@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from whatsapp_langchain.shared.queue import claim_next
+from gyros_os.shared.queue import claim_next
 
 
 class TestClaimNextLeaseRecovery:

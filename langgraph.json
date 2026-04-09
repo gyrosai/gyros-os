@@ -1,7 +1,7 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "rhawk_assistant": "./src/whatsapp_langchain/agents/catalog/rhawk_assistant/graph.py:graph"
+    "rhawk_assistant": "./src/gyros_os/agents/catalog/rhawk_assistant/graph.py:graph"
   },
   "env": ".env"
 }

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from whatsapp_langchain.worker.media import (
+from gyros_os.worker.media import (
     _describe_image,
     _transcribe_audio,
     preprocess_incoming_message,
@@ -74,7 +74,7 @@ class TestMediaReal:
     async def test_preprocess_image_end_to_end(self, media_api_key, image_bytes):
         """Fluxo completo de imagem: mocka só o download, IA é real."""
         with patch(
-            "whatsapp_langchain.worker.media.download_media",
+            "gyros_os.worker.media.download_media",
             new=AsyncMock(return_value=image_bytes),
         ):
             result = await preprocess_incoming_message(
@@ -92,7 +92,7 @@ class TestMediaReal:
     async def test_preprocess_audio_end_to_end(self, media_api_key, audio_bytes):
         """Fluxo completo de áudio: mocka só o download, IA é real."""
         with patch(
-            "whatsapp_langchain.worker.media.download_media",
+            "gyros_os.worker.media.download_media",
             new=AsyncMock(return_value=audio_bytes),
         ):
             result = await preprocess_incoming_message(

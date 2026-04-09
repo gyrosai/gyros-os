@@ -15,7 +15,7 @@ import uuid
 import httpx
 import psycopg
 
-DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/whatsapp_langchain"
+DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5433/gyros_os"
 API_BASE_URL = "http://localhost:8000"
 TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
 
