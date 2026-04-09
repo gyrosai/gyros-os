@@ -1,0 +1,7 @@
+"""Event handlers for the event_queue worker."""
+
+from gyros_os.worker.event_handlers.fireflies import (
+    handle_fireflies_transcription_completed,
+)
+
+__all__ = ["handle_fireflies_transcription_completed"]
