@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from whatsapp_langchain.agents.middleware import get_context_middleware
+from gyros_os.agents.middleware import get_context_middleware
 
 # --- Fixtures ---
 
@@ -45,7 +45,7 @@ class TestTrimMiddleware:
         """Invoca o middleware real e verifica remoção de turnos antigos."""
         from langgraph.graph import add_messages
 
-        from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
+        from gyros_os.agents.middleware.trim import create_trim_middleware
 
         # keep_turns=2 → mantém os últimos 2 turnos
         mw = create_trim_middleware(keep_turns=2)
@@ -79,7 +79,7 @@ class TestTrimMiddleware:
         """Turno com tool_calls (4+ msgs) conta como 1 turno."""
         from langgraph.graph import add_messages
 
-        from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
+        from gyros_os.agents.middleware.trim import create_trim_middleware
 
         # keep_turns=2 → mantém os últimos 2 turnos
         mw = create_trim_middleware(keep_turns=2)
@@ -132,7 +132,7 @@ class TestTrimMiddleware:
 
     def test_trim_no_op_when_few_turns(self):
         """Não faz nada quando há turnos suficientes (dentro do limite)."""
-        from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
+        from gyros_os.agents.middleware.trim import create_trim_middleware
 
         mw = create_trim_middleware(keep_turns=3)
 
@@ -150,7 +150,7 @@ class TestTrimMiddleware:
 
     def test_trim_exact_boundary(self):
         """Não faz nada quando o número de turnos é exatamente o limite."""
-        from whatsapp_langchain.agents.middleware.trim import create_trim_middleware
+        from gyros_os.agents.middleware.trim import create_trim_middleware
 
         mw = create_trim_middleware(keep_turns=2)
 
@@ -206,7 +206,7 @@ class TestSummarizeMiddleware:
 
     def test_summarize_no_op_below_threshold(self):
         """Não sumariza quando tokens estão abaixo do threshold."""
-        from whatsapp_langchain.agents.middleware.summarize import (
+        from gyros_os.agents.middleware.summarize import (
             create_summarize_middleware,
         )
 
@@ -230,7 +230,7 @@ class TestSummarizeMiddleware:
 
     def test_summarize_triggers_on_threshold(self, model):
         """Sumariza quando tokens excedem o threshold."""
-        from whatsapp_langchain.agents.middleware.summarize import (
+        from gyros_os.agents.middleware.summarize import (
             create_summarize_middleware,
         )
 
@@ -397,7 +397,7 @@ class TestGetContextMiddleware:
         """Sem override, a strategy deve vir de shared.config.settings."""
         from unittest.mock import patch
 
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         with patch.object(settings, "context_strategy", "summarize"):
             middleware = get_context_middleware()

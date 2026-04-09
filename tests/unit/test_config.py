@@ -2,7 +2,7 @@
 
 import pytest
 
-from whatsapp_langchain.shared.config import (
+from gyros_os.shared.config import (
     MIN_PRODUCTION_SECRET_LENGTH,
     Settings,
 )

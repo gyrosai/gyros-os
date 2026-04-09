@@ -11,7 +11,7 @@ import time
 
 import httpx
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from gyros_os.shared.config import settings
 
@@ -52,34 +52,48 @@ class FirefliesNotFound(Exception):
     """Raised when the transcript/meeting is not found (404 or null result)."""
 
 
-class Sentence(BaseModel):
+class FirefliesSentence(BaseModel):
     """A single sentence from a Fireflies transcript."""
+
+    model_config = ConfigDict(extra="allow")
 
     speaker_name: str
     text: str
     start_time: float
 
 
-class TranscriptSummary(BaseModel):
-    """Summary section of a Fireflies transcript."""
+class FirefliesSummary(BaseModel):
+    """Summary section of a Fireflies transcript.
 
-    keywords: list[str] | None = None
-    action_items: list[str] | None = None
-    outline: list[str] | None = None
+    All string fields — Fireflies returns markdown, not structured lists.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    keywords: str | None = None
+    action_items: str | None = None
+    outline: str | None = None
     overview: str | None = None
 
 
 class FirefliesTranscript(BaseModel):
-    """Parsed Fireflies transcript."""
+    """Parsed Fireflies transcript.
+
+    Types match the real GraphQL response (validated against meeting
+    01KNQY2BTST2KTP35KD1BNCGMH). extra="allow" on all models so new
+    fields from Fireflies don't break parsing.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     id: str
     title: str
-    date: str | None = None
-    duration: float | None = None
+    date: int                              # timestamp in milliseconds
+    duration: float                        # in MINUTES (not seconds)
     participants: list[str] = []
     transcript_url: str | None = None
-    sentences: list[Sentence] = []
-    summary: TranscriptSummary | None = None
+    sentences: list[FirefliesSentence] = []
+    summary: FirefliesSummary | None = None
 
 
 class FirefliesClient:
@@ -161,13 +175,30 @@ class FirefliesClient:
             )
             raise FirefliesNotFound(f"Transcript not found: {meeting_id}")
 
-        transcript = FirefliesTranscript(**transcript_data)
+        logger.info(
+            "fireflies_graphql_response",
+            meeting_id=meeting_id,
+            raw_response=transcript_data,
+        )
+
+        try:
+            transcript = FirefliesTranscript(**transcript_data)
+        except ValidationError as e:
+            logger.error(
+                "fireflies_transcript_validation_failed",
+                meeting_id=meeting_id,
+                raw_response=transcript_data,
+                validation_errors=e.errors(),
+            )
+            raise
+
+        num_sentences = len(transcript.sentences) if transcript.sentences else 0
 
         logger.info(
             "fireflies_transcript_fetched",
             meeting_id=meeting_id,
             title=transcript.title,
-            num_sentences=len(transcript.sentences),
+            num_sentences=num_sentences,
             duration=transcript.duration,
             latency_ms=latency_ms,
         )

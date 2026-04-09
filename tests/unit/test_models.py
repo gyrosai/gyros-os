@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from whatsapp_langchain.shared.models import (
+from gyros_os.shared.models import (
     EnqueueResult,
     MessageQueue,
     MessageStatus,

@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from whatsapp_langchain.shared.models import MessageQueue
-from whatsapp_langchain.worker.media import MediaPreprocessResult
-from whatsapp_langchain.worker.twilio_client import TwilioSendError
+from gyros_os.shared.models import MessageQueue
+from gyros_os.worker.media import MediaPreprocessResult
+from gyros_os.worker.twilio_client import TwilioSendError
 
 # --- Fixtures ---
 
@@ -62,21 +62,21 @@ def _patch_processor(preprocess_result):
     """Retorna context managers para mockar dependências do processor."""
     return (
         patch(
-            "whatsapp_langchain.worker.processor.preprocess_incoming_message",
+            "gyros_os.worker.processor.preprocess_incoming_message",
             new_callable=AsyncMock,
             return_value=preprocess_result,
         ),
-        patch("whatsapp_langchain.worker.processor.load_graph"),
+        patch("gyros_os.worker.processor.load_graph"),
         patch(
-            "whatsapp_langchain.worker.processor.mark_done",
+            "gyros_os.worker.processor.mark_done",
             new_callable=AsyncMock,
         ),
         patch(
-            "whatsapp_langchain.worker.processor.mark_failed",
+            "gyros_os.worker.processor.mark_failed",
             new_callable=AsyncMock,
         ),
         patch(
-            "whatsapp_langchain.worker.processor.upsert_conversation",
+            "gyros_os.worker.processor.upsert_conversation",
             new_callable=AsyncMock,
         ),
     )
@@ -118,7 +118,7 @@ class TestSendMessageMarkDone:
             }
             mock_load.return_value = mock_graph
 
-            from whatsapp_langchain.worker.processor import process_message
+            from gyros_os.worker.processor import process_message
 
             await process_message(
                 message,
@@ -156,7 +156,7 @@ class TestSendMessageMarkDone:
             }
             mock_load.return_value = mock_graph
 
-            from whatsapp_langchain.worker.processor import process_message
+            from gyros_os.worker.processor import process_message
 
             await process_message(
                 message,
@@ -194,7 +194,7 @@ class TestSendMessageMarkDone:
             }
             mock_load.return_value = mock_graph
 
-            from whatsapp_langchain.worker.processor import process_message
+            from gyros_os.worker.processor import process_message
 
             await process_message(
                 message,
@@ -224,7 +224,7 @@ class TestAutoResponseTwilio:
             patches[3] as mock_failed,
             patches[4],
         ):
-            from whatsapp_langchain.worker.processor import process_message
+            from gyros_os.worker.processor import process_message
 
             await process_message(
                 media_message,
@@ -258,7 +258,7 @@ class TestAutoResponseTwilio:
             patches[3] as mock_failed,
             patches[4],
         ):
-            from whatsapp_langchain.worker.processor import process_message
+            from gyros_os.worker.processor import process_message
 
             await process_message(
                 media_message,

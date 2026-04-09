@@ -5,7 +5,7 @@ import time
 import pytest
 from fastapi import HTTPException
 
-from whatsapp_langchain.server.dependencies import check_rate_limit, request_history
+from gyros_os.server.dependencies import check_rate_limit, request_history
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ class TestRateLimit:
     async def test_blocks_over_limit(self, monkeypatch):
         """Bloqueia quando excede o limite."""
         # Configura limite baixo para teste
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "rate_limit_per_hour", 3)
 
@@ -44,7 +44,7 @@ class TestRateLimit:
 
     async def test_different_phones_independent(self, monkeypatch):
         """Rate limit é independente por telefone."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "rate_limit_per_hour", 2)
 
@@ -57,7 +57,7 @@ class TestRateLimit:
 
     async def test_old_requests_expire(self, monkeypatch):
         """Requisições antigas (>1h) não contam no limite."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "rate_limit_per_hour", 2)
 

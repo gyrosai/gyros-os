@@ -3,7 +3,7 @@
 import pytest
 from langgraph.store.memory import InMemoryStore
 
-from whatsapp_langchain.agents.loader import (
+from gyros_os.agents.loader import (
     AgentNotFoundError,
     list_agents,
     load_graph,

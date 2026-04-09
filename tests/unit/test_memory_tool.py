@@ -3,7 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from whatsapp_langchain.agents.tools.memory import read_memory, save_memory
+from gyros_os.agents.tools.memory import read_memory, save_memory
 
 save_memory_fn = save_memory.coroutine
 read_memory_fn = read_memory.coroutine

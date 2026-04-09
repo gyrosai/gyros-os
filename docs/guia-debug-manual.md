@@ -37,13 +37,13 @@ Você verá todos os endpoints documentados com formulários interativos.
 3. No campo `agent` (query param), digite: `rhawk_assistant`
 4. No corpo (form data), preencha:
 
-| Campo | Valor |
-|---|---|
-| `MessageSid` | `SM_TESTE_001` |
-| `From` | `whatsapp:+5511999990001` |
-| `To` | `whatsapp:+14155238886` |
-| `Body` | `Olá! O que vocês fazem?` |
-| `NumMedia` | `0` |
+| Campo        | Valor                     |
+| ------------ | ------------------------- |
+| `MessageSid` | `SM_TESTE_001`            |
+| `From`       | `whatsapp:+5511999990001` |
+| `To`         | `whatsapp:+14155238886`   |
+| `Body`       | `Olá! O que vocês fazem?` |
+| `NumMedia`   | `0`                       |
 
 5. Clique em **Execute**
 6. A resposta deve ser **200** com TwiML vazio:
@@ -61,7 +61,7 @@ Você verá todos os endpoints documentados com formulários interativos.
 Conecte ao PostgreSQL:
 
 ```bash
-docker compose exec db psql -U postgres -d whatsapp_langchain
+docker compose exec db psql -U postgres -d gyros_os
 ```
 
 ### 3.1 — Ver a mensagem na fila
@@ -74,12 +74,12 @@ WHERE message_id = 'SM_TESTE_001';
 
 **O que observar:**
 
-| `status` | Significado |
-|---|---|
-| `queued` | Na fila, aguardando o Worker |
-| `processing` | Worker pegou, está processando |
-| `done` | Processado com sucesso — `response` tem a resposta da IA |
-| `failed` | Erro — `error` tem o motivo |
+| `status`     | Significado                                              |
+| ------------ | -------------------------------------------------------- |
+| `queued`     | Na fila, aguardando o Worker                             |
+| `processing` | Worker pegou, está processando                           |
+| `done`       | Processado com sucesso — `response` tem a resposta da IA |
+| `failed`     | Erro — `error` tem o motivo                              |
 
 > Rode a query mais de uma vez para acompanhar a transição de status em tempo real.
 
@@ -107,11 +107,11 @@ WHERE phone_number = '+5511999990001';
 
 Volte ao Swagger e envie outra mensagem do **mesmo telefone**:
 
-| Campo | Valor |
-|---|---|
-| `MessageSid` | `SM_TESTE_002` |
-| `From` | `whatsapp:+5511999990001` |
-| `Body` | `Como posso aprender mais sobre agentes?` |
+| Campo        | Valor                                     |
+| ------------ | ----------------------------------------- |
+| `MessageSid` | `SM_TESTE_002`                            |
+| `From`       | `whatsapp:+5511999990001`                 |
+| `Body`       | `Como posso aprender mais sobre agentes?` |
 
 Depois verifique:
 
@@ -166,11 +166,11 @@ Quero saber sobre LangGraph
 
 Envie via Swagger:
 
-| Campo | Valor |
-|---|---|
-| `MessageSid` | `SM_MEM_01` |
-| `From` | `whatsapp:+5511999990003` |
-| `Body` | `Use save_memory e salve: meu código secreto é ALPHA-7742` |
+| Campo        | Valor                                                      |
+| ------------ | ---------------------------------------------------------- |
+| `MessageSid` | `SM_MEM_01`                                                |
+| `From`       | `whatsapp:+5511999990003`                                  |
+| `Body`       | `Use save_memory e salve: meu código secreto é ALPHA-7742` |
 
 Aguarde `status = done`, depois verifique no store:
 
@@ -191,11 +191,11 @@ DELETE FROM checkpoints WHERE thread_id = '+5511999990003:rhawk_assistant';
 
 Envie nova mensagem pedindo recall:
 
-| Campo | Valor |
-|---|---|
-| `MessageSid` | `SM_MEM_02` |
-| `From` | `whatsapp:+5511999990003` |
-| `Body` | `Use read_memory e me diga qual é meu código secreto` |
+| Campo        | Valor                                                 |
+| ------------ | ----------------------------------------------------- |
+| `MessageSid` | `SM_MEM_02`                                           |
+| `From`       | `whatsapp:+5511999990003`                             |
+| `Body`       | `Use read_memory e me diga qual é meu código secreto` |
 
 Verifique se a resposta contém `ALPHA-7742`:
 
@@ -210,12 +210,12 @@ WHERE message_id = 'SM_MEM_02' AND status = 'done';
 
 Sem sair do Swagger, teste os endpoints admin:
 
-| Endpoint | O que mostra |
-|---|---|
-| `GET /api/agents` | Agentes disponíveis (`rhawk_assistant`) |
-| `GET /api/chats` | Lista de conversas com `message_count` |
-| `GET /api/chats/+5511999990001` | Mensagens de um telefone específico |
-| `GET /api/metrics` | `total_today`, `queue_size`, `failures_today` |
+| Endpoint                        | O que mostra                                  |
+| ------------------------------- | --------------------------------------------- |
+| `GET /api/agents`               | Agentes disponíveis (`rhawk_assistant`)       |
+| `GET /api/chats`                | Lista de conversas com `message_count`        |
+| `GET /api/chats/+5511999990001` | Mensagens de um telefone específico           |
+| `GET /api/metrics`              | `total_today`, `queue_size`, `failures_today` |
 
 ---
 

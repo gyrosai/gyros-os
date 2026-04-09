@@ -4,6 +4,8 @@ Fetches the transcript from Fireflies GraphQL API and ingests it
 into the knowledge base via the RAG pipeline.
 """
 
+from datetime import UTC, datetime
+
 import structlog
 
 from gyros_os.integrations.fireflies import FirefliesClient
@@ -18,13 +20,6 @@ def _format_time(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
     return f"{h:02d}:{m:02d}"
-
-
-def _format_duration_minutes(seconds: float | None) -> str:
-    """Format duration in seconds to 'N min'."""
-    if seconds is None:
-        return "unknown"
-    return f"{int(seconds / 60)} min"
 
 
 async def handle_fireflies_transcription_completed(event: Event) -> dict:
@@ -48,18 +43,34 @@ async def handle_fireflies_transcription_completed(event: Event) -> dict:
     client = FirefliesClient()
     transcript = await client.get_transcript(meeting_id)
 
+    # date is int (timestamp ms)
+    meeting_date = datetime.fromtimestamp(
+        transcript.date / 1000, tz=UTC
+    )
+    meeting_date_str = meeting_date.strftime("%Y-%m-%d %H:%M UTC")
+
+    # duration is float in MINUTES
+    duration_minutes = int(transcript.duration)
+    duration_seconds = int(transcript.duration * 60)
+    duration_text = f"{duration_minutes} min"
+
     # Build consolidated text
     lines = [
         f"Reunião: {transcript.title}",
-        f"Data: {transcript.date or 'N/A'}",
-        f"Duração: {_format_duration_minutes(transcript.duration)}",
-        f"Participantes: {', '.join(transcript.participants)}",
+        f"Data: {meeting_date_str}",
+        f"Duração: {duration_text}",
+        f"Participantes: {', '.join(transcript.participants) if transcript.participants else 'N/A'}",
         "---",
     ]
 
-    for sentence in transcript.sentences:
-        timestamp = _format_time(sentence.start_time)
-        lines.append(f"[{timestamp}] {sentence.speaker_name}: {sentence.text}")
+    if transcript.sentences:
+        for s in transcript.sentences:
+            timestamp = _format_time(s.start_time)
+            lines.append(f"[{timestamp}] {s.speaker_name}: {s.text}")
+    elif transcript.summary and transcript.summary.overview:
+        lines.append(transcript.summary.overview)
+    else:
+        lines.append("[Transcrição sem conteúdo de falas]")
 
     content = "\n\n".join(lines)
 
@@ -69,9 +80,10 @@ async def handle_fireflies_transcription_completed(event: Event) -> dict:
 
     metadata = {
         "participants": transcript.participants,
-        "duration_seconds": transcript.duration,
+        "duration_seconds": duration_seconds,
+        "duration_minutes": duration_minutes,
         "fireflies_url": transcript.transcript_url,
-        "date": transcript.date,
+        "date": meeting_date_str,
     }
 
     if transcript.summary:

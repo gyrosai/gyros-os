@@ -24,10 +24,10 @@ migrate: ## Aplica migrações pendentes no banco
 	uv run python db/migrate.py
 
 api: ## Roda a API localmente (fora do Docker)
-	uv run uvicorn whatsapp_langchain.server.main:app --reload --port 8000
+	uv run uvicorn gyros_os.server.main:app --reload --port 8000
 
 worker: ## Roda o Worker localmente (fora do Docker)
-	uv run python -m whatsapp_langchain.worker.main
+	uv run python -m gyros_os.worker.main
 
 frontend: ## Admin Panel (Next.js)
 	cd frontend && npm run dev

@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from whatsapp_langchain import __version__
-from whatsapp_langchain.server.main import app
+from gyros_os import __version__
+from gyros_os.server.main import app
 
 client = TestClient(app, raise_server_exceptions=False)
 TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
@@ -19,27 +19,27 @@ TEST_INTERNAL_SERVICE_TOKEN = "test-internal-token"
 @pytest.fixture(autouse=True)
 def mock_db(monkeypatch):
     """Mock do banco de dados para testes sem PostgreSQL."""
-    from whatsapp_langchain.shared.config import settings
+    from gyros_os.shared.config import settings
 
     mock_pool = AsyncMock()
     monkeypatch.setattr(settings, "internal_service_token", TEST_INTERNAL_SERVICE_TOKEN)
 
     with (
         patch(
-            "whatsapp_langchain.server.routes.health.check_db_health",
+            "gyros_os.server.routes.health.check_db_health",
             return_value=True,
         ),
         patch(
-            "whatsapp_langchain.server.routes.webhook.get_pool",
+            "gyros_os.server.routes.webhook.get_pool",
             return_value=mock_pool,
         ),
         patch(
-            "whatsapp_langchain.server.routes.admin.get_pool",
+            "gyros_os.server.routes.admin.get_pool",
             return_value=mock_pool,
         ),
-        patch("whatsapp_langchain.shared.db.get_pool", return_value=mock_pool),
-        patch("whatsapp_langchain.shared.db.run_migrations"),
-        patch("whatsapp_langchain.shared.db.close_pool"),
+        patch("gyros_os.shared.db.get_pool", return_value=mock_pool),
+        patch("gyros_os.shared.db.run_migrations"),
+        patch("gyros_os.shared.db.close_pool"),
     ):
         yield mock_pool
 
@@ -111,10 +111,10 @@ class TestWebhookTwilio:
         )
         assert response.status_code == 400
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_twilio_enqueues_message(self, mock_enqueue):
         """Deve enfileirar mensagem e retornar TwiML vazio."""
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.models import EnqueueResult
 
         mock_enqueue.return_value = EnqueueResult(message_id=1, is_buffered=False)
 

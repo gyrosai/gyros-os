@@ -2,7 +2,7 @@
 
 from langchain_core.rate_limiters import InMemoryRateLimiter
 
-from whatsapp_langchain.shared.llm import create_chat_model
+from gyros_os.shared.llm import create_chat_model
 
 
 class TestCreateChatModel:
@@ -16,7 +16,7 @@ class TestCreateChatModel:
 
     def test_rate_limiter_uses_settings(self):
         """Rate limiter deve refletir valores configurados nos settings."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         model = create_chat_model()
         limiter = model.rate_limiter
@@ -37,14 +37,14 @@ class TestCreateChatModel:
 
     def test_default_model_from_settings(self):
         """Sem override, deve usar modelo dos settings."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         model = create_chat_model()
         assert model.model_name == settings.openrouter_model
 
     def test_base_url_from_settings(self):
         """Base URL deve vir dos settings."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         model = create_chat_model()
         assert model.openai_api_base == settings.openrouter_base_url

@@ -14,7 +14,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 from pydantic import SecretStr
 
-from whatsapp_langchain.agents.tools import read_memory, save_memory
+from gyros_os.agents.tools import read_memory, save_memory
 
 
 @pytest.fixture

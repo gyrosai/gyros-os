@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from twilio.request_validator import RequestValidator
 
-from whatsapp_langchain.server.main import app
+from gyros_os.server.main import app
 
 client = TestClient(app, raise_server_exceptions=False)
 
@@ -23,26 +23,26 @@ TEST_WEBHOOK_URL = "https://example.com"
 @pytest.fixture(autouse=True)
 def mock_db(monkeypatch):
     """Mock do banco de dados para testes sem PostgreSQL."""
-    from whatsapp_langchain.shared.config import settings
+    from gyros_os.shared.config import settings
 
     mock_pool = AsyncMock()
     monkeypatch.setattr(settings, "internal_service_token", TEST_INTERNAL_SERVICE_TOKEN)
     with (
         patch(
-            "whatsapp_langchain.server.routes.health.check_db_health",
+            "gyros_os.server.routes.health.check_db_health",
             return_value=True,
         ),
         patch(
-            "whatsapp_langchain.server.routes.webhook.get_pool",
+            "gyros_os.server.routes.webhook.get_pool",
             return_value=mock_pool,
         ),
         patch(
-            "whatsapp_langchain.server.routes.admin.get_pool",
+            "gyros_os.server.routes.admin.get_pool",
             return_value=mock_pool,
         ),
-        patch("whatsapp_langchain.shared.db.get_pool", return_value=mock_pool),
-        patch("whatsapp_langchain.shared.db.run_migrations"),
-        patch("whatsapp_langchain.shared.db.close_pool"),
+        patch("gyros_os.shared.db.get_pool", return_value=mock_pool),
+        patch("gyros_os.shared.db.run_migrations"),
+        patch("gyros_os.shared.db.close_pool"),
     ):
         yield mock_pool
 
@@ -71,11 +71,11 @@ def sign_request(
 class TestSignatureValidationDisabled:
     """Quando VALIDATE_TWILIO_SIGNATURE=false (padrão), bypass total."""
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_accepts_without_signature(self, mock_enqueue, monkeypatch):
         """Aceita requests sem header X-Twilio-Signature."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", False)
         mock_enqueue.return_value = EnqueueResult(message_id=1, is_buffered=False)
@@ -92,11 +92,11 @@ class TestSignatureValidationDisabled:
         )
         assert response.status_code == 200
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_accepts_with_invalid_signature(self, mock_enqueue, monkeypatch):
         """Aceita requests com assinatura inválida quando validação desabilitada."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", False)
         mock_enqueue.return_value = EnqueueResult(message_id=1, is_buffered=False)
@@ -120,7 +120,7 @@ class TestSignatureValidationEnabled:
 
     def test_rejects_missing_signature(self, monkeypatch):
         """Rejeita com 403 quando header X-Twilio-Signature ausente."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", TEST_AUTH_TOKEN)
@@ -140,7 +140,7 @@ class TestSignatureValidationEnabled:
 
     def test_rejects_invalid_signature(self, monkeypatch):
         """Rejeita com 403 quando assinatura HMAC-SHA1 não confere."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", TEST_AUTH_TOKEN)
@@ -160,11 +160,11 @@ class TestSignatureValidationEnabled:
         assert response.status_code == 403
         assert "Invalid" in response.json()["detail"]
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_accepts_valid_signature(self, mock_enqueue, monkeypatch):
         """Aceita request com assinatura HMAC-SHA1 válida."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", TEST_AUTH_TOKEN)
@@ -188,11 +188,11 @@ class TestSignatureValidationEnabled:
         )
         assert response.status_code == 200
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_valid_signature_with_media(self, mock_enqueue, monkeypatch):
         """Aceita assinatura válida em mensagem com mídia."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", TEST_AUTH_TOKEN)
@@ -220,7 +220,7 @@ class TestSignatureValidationEnabled:
 
     def test_wrong_token_rejects(self, monkeypatch):
         """Assinatura gerada com token diferente é rejeitada."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", "token_correto_do_server")
@@ -246,7 +246,7 @@ class TestSignatureValidationEnabled:
 
     def test_tampered_body_rejects(self, monkeypatch):
         """Rejeita quando body foi alterado após assinatura."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", TEST_AUTH_TOKEN)
@@ -273,7 +273,7 @@ class TestSignatureValidationEnabled:
 
     def test_missing_auth_token_returns_500(self, monkeypatch):
         """Retorna 500 se validação habilitada mas token não configurado."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "validate_twilio_signature", True)
         monkeypatch.setattr(settings, "twilio_auth_token", "")
@@ -298,10 +298,10 @@ class TestBuildValidationUrl:
 
     def test_uses_webhook_url_when_configured(self, monkeypatch):
         """Usa TWILIO_WEBHOOK_URL como base quando configurada."""
-        from whatsapp_langchain.server.dependencies import build_validation_url
+        from gyros_os.server.dependencies import build_validation_url
 
         monkeypatch.setattr(
-            "whatsapp_langchain.server.dependencies.settings",
+            "gyros_os.server.dependencies.settings",
             type(
                 "MockSettings",
                 (),
@@ -333,10 +333,10 @@ class TestBuildValidationUrl:
 
     def test_falls_back_to_request_url(self, monkeypatch):
         """Usa request.url quando TWILIO_WEBHOOK_URL não está configurada."""
-        from whatsapp_langchain.server.dependencies import build_validation_url
+        from gyros_os.server.dependencies import build_validation_url
 
         monkeypatch.setattr(
-            "whatsapp_langchain.server.dependencies.settings",
+            "gyros_os.server.dependencies.settings",
             type("MockSettings", (), {"twilio_webhook_url": ""})(),
         )
 
@@ -361,10 +361,10 @@ class TestBuildValidationUrl:
 
     def test_strips_trailing_slash_from_base(self, monkeypatch):
         """Remove trailing slash da URL base para evitar duplicata."""
-        from whatsapp_langchain.server.dependencies import build_validation_url
+        from gyros_os.server.dependencies import build_validation_url
 
         monkeypatch.setattr(
-            "whatsapp_langchain.server.dependencies.settings",
+            "gyros_os.server.dependencies.settings",
             type(
                 "MockSettings",
                 (),
@@ -395,11 +395,11 @@ class TestBuildValidationUrl:
 class TestWaIdNormalization:
     """Normalização de identidade inbound com fallback WaId."""
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_uses_from_when_present(self, mock_enqueue, monkeypatch):
         """Usa From (sem prefixo whatsapp:) quando presente."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", False)
         mock_enqueue.return_value = EnqueueResult(message_id=1, is_buffered=False)
@@ -420,11 +420,11 @@ class TestWaIdNormalization:
         call_kwargs = mock_enqueue.call_args
         assert call_kwargs.kwargs["phone_number"] == "+5511999999999"
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_falls_back_to_waid_without_plus(self, mock_enqueue, monkeypatch):
         """Usa WaId como fallback quando From está vazio, normaliza com +."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", False)
         mock_enqueue.return_value = EnqueueResult(message_id=1, is_buffered=False)
@@ -445,11 +445,11 @@ class TestWaIdNormalization:
         call_kwargs = mock_enqueue.call_args
         assert call_kwargs.kwargs["phone_number"] == "+5511999999999"
 
-    @patch("whatsapp_langchain.server.routes.webhook.enqueue_or_buffer")
+    @patch("gyros_os.server.routes.webhook.enqueue_or_buffer")
     def test_falls_back_to_waid_with_plus(self, mock_enqueue, monkeypatch):
         """Usa WaId como fallback quando já tem +."""
-        from whatsapp_langchain.shared.config import settings
-        from whatsapp_langchain.shared.models import EnqueueResult
+        from gyros_os.shared.config import settings
+        from gyros_os.shared.models import EnqueueResult
 
         monkeypatch.setattr(settings, "validate_twilio_signature", False)
         mock_enqueue.return_value = EnqueueResult(message_id=1, is_buffered=False)
@@ -471,7 +471,7 @@ class TestWaIdNormalization:
 
     def test_rejects_missing_sender_identity(self, monkeypatch):
         """Retorna 400 quando From e WaId estão ambos vazios."""
-        from whatsapp_langchain.shared.config import settings
+        from gyros_os.shared.config import settings
 
         monkeypatch.setattr(settings, "validate_twilio_signature", False)
 

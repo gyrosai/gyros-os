@@ -26,8 +26,8 @@ from langgraph.store.postgres.aio import AsyncPostgresStore
 from langgraph.store.postgres.base import PostgresIndexConfig
 from pydantic import SecretStr
 
-from whatsapp_langchain.agents.tools import read_memory, save_memory
-from whatsapp_langchain.shared.config import settings
+from gyros_os.agents.tools import read_memory, save_memory
+from gyros_os.shared.config import settings
 
 from .helpers import (
     API_BASE_URL,
