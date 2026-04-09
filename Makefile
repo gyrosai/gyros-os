@@ -103,6 +103,20 @@ test-demo-up: ## Sobe stack Docker e roda testes demonstrativos
 test-flows: ## Roda testes de fluxo realista (requer stack Docker)
 	uv run pytest tests/integration/test_realistic_flows.py -v -s
 
+##@ Backfill manual de reunioes
+backfill-one: ## Indexa uma reuniao: make backfill-one MEETING_ID=01KNQ...
+	@if [ -z "$(MEETING_ID)" ]; then \
+		echo "Uso: make backfill-one MEETING_ID=01KNQ..."; \
+		exit 1; \
+	fi
+	uv run python -m gyros_os.scripts.backfill_meetings one $(MEETING_ID)
+
+backfill-list: ## Lista reunioes pendentes: make backfill-list DAYS=7
+	uv run python -m gyros_os.scripts.backfill_meetings list --days $(or $(DAYS),7)
+
+backfill-sync: ## Indexa todas as pendentes: make backfill-sync DAYS=7
+	uv run python -m gyros_os.scripts.backfill_meetings sync --days $(or $(DAYS),7)
+
 ##@ Limpeza
 clean: ## Remove arquivos de cache do Python
 	find . -type d -name __pycache__ -exec rm -rf {} +
