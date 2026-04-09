@@ -1,14 +1,14 @@
 """Agente gyros_assistant - assistente pessoal da Camila Martins.
 
-Agente conversacional sem tools, usando create_agent do LangChain 1.0.
-Usa middleware de contexto configurável (trim ou summarize).
-
-Nesta versão (Fatia 2.1) o agente é puramente conversacional — sem
-tools, sem memória semântica, sem RAG. As capacidades serão adicionadas
-nas fatias seguintes.
+Agente conversacional usando create_agent do LangChain 1.0.
+Usa middleware de contexto configurável (trim ou summarize)
+e memória semântica cross-thread via LangGraph Store.
 
 Este arquivo contém a factory `build_graph()`. Para langgraph dev,
 veja graph.py que exporta a variável `graph`.
+
+Configuração via .env:
+    MEMORY_ENABLED=true                # Habilita memória semântica
 """
 
 from langchain.agents import create_agent
@@ -16,6 +16,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 
 from gyros_os.agents.middleware import get_context_middleware
+from gyros_os.agents.tools import read_memory, save_memory
 from gyros_os.shared.llm import create_chat_model
 
 from .prompts import SYSTEM_PROMPT
@@ -27,9 +28,13 @@ def build_graph(
 ):
     """Constrói o agente gyros_assistant.
 
+    Se store for fornecido, habilita memória semântica:
+    - Recall automático via middleware (busca memórias antes de cada chamada)
+    - Save explícito via tool save_memory (agente decide quando salvar)
+
     Args:
         checkpointer: Checkpointer para persistência de estado.
-        store: Store para memória semântica (não usado nesta versão).
+        store: Store para memória semântica cross-thread.
 
     Returns:
         CompiledStateGraph: Agente compilado pronto para uso.
@@ -37,8 +42,8 @@ def build_graph(
     model = create_chat_model()
     middleware = get_context_middleware()
 
-    # Sem tools nesta versão — agente puramente conversacional
-    tools = []
+    # Tools de memória — só disponibiliza quando store existe
+    tools = [save_memory, read_memory] if store else []
 
     return create_agent(
         model=model,
