@@ -154,7 +154,12 @@ async def process_message(
             "configurable": {
                 "thread_id": message.thread_id,
                 "user_id": message.phone_number,
-            }
+            },
+            # Guardrail defensivo: o fluxo atual da Lyra usa no máximo 3 tool
+            # calls por turno. 10 é folgado o suficiente pra uso legítimo e
+            # corta qualquer loop de LLM antes que vire incidente visível
+            # (ex: propose_action sendo chamada repetidamente no mesmo turno).
+            "recursion_limit": 10,
         }
 
         graph = load_graph(
