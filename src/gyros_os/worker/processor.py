@@ -42,6 +42,7 @@ from gyros_os.shared.queue import (
     mark_failed,
     upsert_conversation,
 )
+from gyros_os.worker.approval_handler import try_handle_approval_reply
 from gyros_os.worker.media import (
     AUTO_RESPONSE_MEDIA_FAILURE,
     preprocess_incoming_message,
@@ -117,6 +118,20 @@ async def process_message(
                 phone=message.phone_number,
                 agent_id=message.agent_id,
                 media_status=pre.media_processing_status,
+            )
+            return
+
+        # 1.5. HITL: se a mensagem é uma resposta de aprovação (✅, ❌, etc),
+        # o handler trata direto e marca a inbound como done. NÃO invoca o
+        # graph nesse caso. Se o handler retorna False, segue o fluxo normal.
+        handled_as_approval = await try_handle_approval_reply(
+            message, pool, twilio
+        )
+        if handled_as_approval:
+            logger.info(
+                "message_handled_as_approval",
+                message_id=message.id,
+                phone=message.phone_number,
             )
             return
 

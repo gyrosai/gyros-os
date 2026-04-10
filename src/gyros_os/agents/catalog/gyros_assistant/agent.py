@@ -16,7 +16,12 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 
 from gyros_os.agents.middleware import get_context_middleware
-from gyros_os.agents.tools import read_memory, save_memory, search_meetings
+from gyros_os.agents.tools import (
+    propose_action,
+    read_memory,
+    save_memory,
+    search_meetings,
+)
 from gyros_os.shared.llm import create_chat_model
 
 from .prompts import SYSTEM_PROMPT
@@ -42,8 +47,10 @@ def build_graph(
     model = create_chat_model()
     middleware = get_context_middleware()
 
-    # Tools de memória — só disponibiliza quando store existe
-    tools = [save_memory, read_memory, search_meetings] if store else []
+    # Tools — propose_action (HITL) sempre disponível; memória/RAG só quando store existe.
+    tools: list = [propose_action]
+    if store:
+        tools.extend([save_memory, read_memory, search_meetings])
 
     return create_agent(
         model=model,
