@@ -33,9 +33,7 @@ class Settings(BaseSettings):
     )
 
     # --- Database ---
-    database_url: str = (
-        "postgresql://postgres:postgres@localhost:5433/gyros_os"
-    )
+    database_url: str = "postgresql://postgres:postgres@localhost:5433/gyros_os"
 
     # --- Environment ---
     # "development" (default) ou "production" — controla comportamentos como
@@ -112,6 +110,13 @@ class Settings(BaseSettings):
     embedding_dims: int = 1536
     memory_search_limit: int = 5
 
+    # --- Fatia 3.2: OAuth Google Calendar ---
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: SecretStr | None = None
+    google_oauth_redirect_uri: str = ""
+    google_oauth_scopes: str = ""
+    oauth_token_encryption_key: SecretStr | None = None
+
     @property
     def resolved_twilio_outbound_mode(self) -> str:
         """Resolve o modo outbound do Twilio com fallback seguro por ambiente."""
@@ -132,6 +137,23 @@ class Settings(BaseSettings):
         if not token:
             raise ValueError(
                 "INTERNAL_SERVICE_TOKEN deve ser preenchido antes de subir a API."
+            )
+
+        # OAuth Google Calendar (Fatia 3.2+)
+        # Todos ou nenhum — ou a feature está configurada, ou não existe.
+        oauth_fields = [
+            ("GOOGLE_OAUTH_CLIENT_ID", self.google_oauth_client_id),
+            ("GOOGLE_OAUTH_CLIENT_SECRET", self.google_oauth_client_secret),
+            ("GOOGLE_OAUTH_REDIRECT_URI", self.google_oauth_redirect_uri),
+            ("GOOGLE_OAUTH_SCOPES", self.google_oauth_scopes),
+            ("OAUTH_TOKEN_ENCRYPTION_KEY", self.oauth_token_encryption_key),
+        ]
+        oauth_filled = [name for name, value in oauth_fields if value]
+        if oauth_filled and len(oauth_filled) < len(oauth_fields):
+            missing = [name for name, value in oauth_fields if not value]
+            raise ValueError(
+                "Configuração OAuth incompleta — preencha todas ou nenhuma. "
+                f"Faltando: {', '.join(missing)}"
             )
 
         if self.is_production and len(token) < MIN_PRODUCTION_SECRET_LENGTH:

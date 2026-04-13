@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from gyros_os.agents.loader import AgentNotFoundError
 from gyros_os.server.routes.admin import router as admin_router
 from gyros_os.server.routes.health import router as health_router
+from gyros_os.server.routes.oauth_routes import router as oauth_router
 from gyros_os.server.routes.webhook import router as webhook_router
 from gyros_os.server.routes.webhooks_fireflies import router as fireflies_router
 from gyros_os.shared.config import settings
@@ -93,6 +94,7 @@ async def agent_not_found_handler(
 app.include_router(health_router)
 app.include_router(webhook_router)
 app.include_router(fireflies_router)
+app.include_router(oauth_router)
 app.include_router(admin_router)
 
 # Webhook sincrono — apenas para dev/testes, nunca em producao.

@@ -58,3 +58,7 @@ stress/results_*.csv
 docs/FASE_1_APOIO_VISUAL.excalidraw
 docs/FASE_1_APOIO_VISUAL.md
 patch/
+
+# Google OAuth client secret files — NUNCA commitar
+client_secret_*.json
+*_client_secret.json

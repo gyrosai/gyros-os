@@ -18,6 +18,10 @@ dependencies = [
     "twilio==9.10.2",
     "openai>=1.0.0",
     "tiktoken>=0.7.0",
+    "cryptography>=42",
+    "google-auth>=2.23",
+    "google-auth-oauthlib>=1.2",
+    "google-api-python-client>=2.120",
 ]
 
 [project.optional-dependencies]
