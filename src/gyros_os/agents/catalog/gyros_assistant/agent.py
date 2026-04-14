@@ -17,6 +17,7 @@ from langgraph.store.base import BaseStore
 
 from gyros_os.agents.middleware import get_context_middleware
 from gyros_os.agents.tools import (
+    create_calendar_event,
     propose_action,
     read_memory,
     save_memory,
@@ -47,8 +48,9 @@ def build_graph(
     model = create_chat_model()
     middleware = get_context_middleware()
 
-    # Tools — propose_action (HITL) sempre disponível; memória/RAG só quando store existe.
-    tools: list = [propose_action]
+    # Tools — propose_action (HITL) e create_calendar_event sempre disponíveis;
+    # memória/RAG só quando store existe.
+    tools: list = [propose_action, create_calendar_event]
     if store:
         tools.extend([save_memory, read_memory, search_meetings])
 
