@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 from gyros_os.shared.config import settings
 from gyros_os.shared.db import get_pool
 from gyros_os.shared.event_queue import enqueue_event
+from gyros_os.shared.org import get_default_org_id
 
 logger = structlog.get_logger()
 
@@ -167,19 +168,7 @@ async def webhook_fireflies(
     # TODO: In v0.2, resolve org_id from a mapping (e.g. clientReferenceId
     # or a Fireflies workspace → org mapping). For now, always use 'gyros'.
     pool = await get_pool()
-    async with pool.connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id FROM organizations WHERE slug = 'gyros'"
-        )
-        row = await cursor.fetchone()
-        if row is None:
-            logger.error("fireflies_webhook_org_not_found", slug="gyros")
-            return Response(
-                content='{"error": "organization not found"}',
-                status_code=500,
-                media_type="application/json",
-            )
-        gyros_org_id = row[0]
+    gyros_org_id = await get_default_org_id(pool)
 
     event_id = await enqueue_event(
         org_id=gyros_org_id,

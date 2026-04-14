@@ -33,6 +33,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from gyros_os.oauth import service
 from gyros_os.oauth.providers import google as google_provider
 from gyros_os.shared.db import get_pool
+from gyros_os.shared.org import get_default_org_id
 
 logger = structlog.get_logger()
 
@@ -182,20 +183,8 @@ async def oauth_google_callback(
             status=400,
         )
 
-    # Resolve org_id inline — duplicação deliberada (5º call site).
-    # Refatoração de _resolve_default_org_id é primeira coisa da 3.3.
     pool = await get_pool()
-    async with pool.connection() as conn:
-        cursor = await conn.execute("SELECT id FROM organizations WHERE slug = 'gyros'")
-        row = await cursor.fetchone()
-        if row is None:
-            logger.error("oauth_callback_org_not_found", slug="gyros")
-            return _html_response(
-                "Erro interno",
-                "<h1>Erro interno</h1><p>Organização 'gyros' não encontrada.</p>",
-                status=500,
-            )
-        org_id = row[0]
+    org_id = await get_default_org_id(pool)
 
     # Troca o code por tokens + descobre email.
     token_response = await google_provider.exchange_code_for_tokens(code=code)

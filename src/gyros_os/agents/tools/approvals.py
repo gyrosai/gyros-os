@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from gyros_os.approvals.service import create_approval
 from gyros_os.shared.db import get_pool
+from gyros_os.shared.org import get_default_org_id
 
 logger = structlog.get_logger()
 
@@ -97,26 +98,8 @@ async def propose_action(
     user_id = configurable.get("user_id", "unknown")
     thread_id = configurable.get("thread_id")
 
-    # TODO(refactor): replicado de tools/meetings.py e webhooks_fireflies.py.
-    # Este é o 3º caso — quando a próxima tool precisar disso, extrair para
-    # gyros_os.shared.org.get_default_org_id(). Por enquanto, inline mantém
-    # a fatia coesa e o teste objetivo deste módulo.
     pool = await get_pool()
-    async with pool.connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id FROM organizations WHERE slug = 'gyros'"
-        )
-        row = await cursor.fetchone()
-        if row is None:
-            logger.error("propose_action_org_not_found", slug="gyros")
-            return {
-                "status": "error",
-                "approval_id": None,
-                "user_facing_message": (
-                    "Erro de configuração: organização gyros não encontrada no banco."
-                ),
-            }
-        org_id = row[0]
+    org_id = await get_default_org_id(pool)
 
     approval_id = await create_approval(
         organization_id=org_id,

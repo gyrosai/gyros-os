@@ -11,6 +11,7 @@ from langchain_core.tools import InjectedToolArg, tool
 
 from gyros_os.rag.retrieve import retrieve
 from gyros_os.shared.db import get_pool
+from gyros_os.shared.org import get_default_org_id
 
 logger = structlog.get_logger()
 
@@ -41,20 +42,8 @@ async def search_meetings(
         return "Forneça uma consulta de busca não vazia."
 
     try:
-        # TODO(refactor): replicado de webhooks_fireflies.py para evitar abstração
-        # prematura (regra: refatorar quando aparecer o 3º caso, não o 2º). Quando
-        # uma terceira chamada precisar de org_id, extrair para
-        # gyros_os.shared.org.get_default_org_id() ou similar.
         pool = await get_pool()
-        async with pool.connection() as conn:
-            cursor = await conn.execute(
-                "SELECT id FROM organizations WHERE slug = 'gyros'"
-            )
-            row = await cursor.fetchone()
-            if row is None:
-                logger.error("search_meetings_org_not_found", slug="gyros")
-                return "Erro de configuração: organização gyros não encontrada no banco."
-            org_id = row[0]
+        org_id = await get_default_org_id(pool)
 
         results = await retrieve(org_id=org_id, query=query, top_k=5)
     except Exception as e:

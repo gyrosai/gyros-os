@@ -18,8 +18,6 @@ Princípios:
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import structlog
 from psycopg_pool import AsyncConnectionPool
 
@@ -36,25 +34,11 @@ from gyros_os.approvals.service import (
 )
 from gyros_os.shared.db import get_pool
 from gyros_os.shared.models import MessageQueue
+from gyros_os.shared.org import get_default_org_id
 from gyros_os.shared.queue import mark_done, upsert_conversation
 from gyros_os.worker.twilio_client import TwilioClient
 
 logger = structlog.get_logger()
-
-
-async def _resolve_default_org_id() -> UUID | None:
-    """Resolve o org_id da Gyros (mesma estratégia inline das tools).
-
-    TODO(refactor): 4º caso de inline. Quando esta função existir mais
-    uma vez, extrair para gyros_os.shared.org.get_default_org_id().
-    """
-    pool = await get_pool()
-    async with pool.connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id FROM organizations WHERE slug = 'gyros'"
-        )
-        row = await cursor.fetchone()
-    return row[0] if row else None
 
 
 def _format_executed_reply(approval: Approval) -> str:
@@ -93,10 +77,7 @@ async def try_handle_approval_reply(
     if decision is None:
         return False
 
-    org_id = await _resolve_default_org_id()
-    if org_id is None:
-        logger.error("approval_handler_org_not_found", slug="gyros")
-        return False
+    org_id = await get_default_org_id(await get_pool())
 
     # Resolver qual approval é o alvo: ID explícito ou "última pending".
     approval: Approval | None
