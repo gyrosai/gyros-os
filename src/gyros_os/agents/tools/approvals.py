@@ -52,8 +52,12 @@ def _extract_configurable(runtime: Any) -> dict:
 class ProposeActionInput(BaseModel):
     action_type: str = Field(
         description=(
-            "Tipo da ação a ser executada após aprovação. "
-            "Para esta fatia, use 'noop_test' para validar o fluxo HITL."
+            "Identificador técnico do tipo de ação a ser executada após "
+            "aprovação. Deve bater com um executor registrado via "
+            "@register_executor. Exemplo válido no projeto: "
+            "'gcal_create_event' (criar evento no Google Calendar). "
+            "NÃO invente action_types novos — use apenas os documentados "
+            "no system prompt da Lyra."
         )
     )
     payload: dict[str, Any] = Field(
