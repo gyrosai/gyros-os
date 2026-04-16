@@ -241,6 +241,7 @@ export default function KbPage() {
           flex: 1,
           padding: "0 24px 24px",
           overflowY: "auto",
+          background: "#FAFAFA",
           border: dragging ? "2px dashed" : "2px solid transparent",
           borderColor: dragging ? brandColor : "transparent",
           borderRadius: "8px",

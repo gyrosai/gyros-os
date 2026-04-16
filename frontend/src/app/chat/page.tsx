@@ -211,7 +211,13 @@ function ChatContent() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ padding: "12px 20px", textAlign: "center" }}>
+      <div
+        style={{
+          padding: "14px 20px",
+          textAlign: "center",
+          borderBottom: "1px solid #f5f5f5",
+        }}
+      >
         <span style={{ fontSize: "13px", fontWeight: 500, color: "#aaa" }}>
           {studioConfig.name}
         </span>
@@ -224,6 +230,7 @@ function ChatContent() {
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
+          background: "#FAFAFA",
         }}
       >
         {/* Loading thread */}
@@ -393,7 +400,14 @@ function ChatContent() {
       )}
 
       {/* Input area */}
-      <div style={{ padding: "0 20px 16px", width: "100%" }}>
+      <div
+        style={{
+          padding: "12px 20px 16px",
+          width: "100%",
+          background: "#fff",
+          borderTop: "1px solid #f0f0f0",
+        }}
+      >
         <div className="chat-input-box">
           <textarea
             ref={textareaRef}
@@ -428,24 +442,6 @@ function ChatContent() {
                 e.target.value = "";
               }}
             />
-
-            {/* Info icon */}
-            <button type="button" className="chat-toolbar-btn">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#888"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="4 7 4 4 20 4 20 7" />
-                <line x1="9" y1="20" x2="15" y2="20" />
-                <line x1="12" y1="4" x2="12" y2="20" />
-              </svg>
-            </button>
 
             <div style={{ flex: 1 }} />
 

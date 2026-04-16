@@ -42,8 +42,9 @@ export default async function HomePage() {
       {/* Header */}
       <div
         style={{
-          padding: "12px 20px",
+          padding: "14px 20px",
           textAlign: "center",
+          borderBottom: "1px solid #f5f5f5",
         }}
       >
         <span

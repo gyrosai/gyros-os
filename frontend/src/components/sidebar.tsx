@@ -9,8 +9,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import { studioConfig } from "@/lib/runtime-config";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Settings, LogOut } from "lucide-react";
 
 /* ── SVG Icons (inline, com stroke-linecap/linejoin round) ── */
 
@@ -129,8 +137,12 @@ export function IconBar() {
   const pathname = usePathname();
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const { data: session } = useSession();
 
   const showInternal = studioConfig.features.has("internal");
+  const userName = session?.user?.name || "Usuário";
+  const userEmail = session?.user?.email || "";
+  const userInitial = (userName[0] || "U").toUpperCase();
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/";
@@ -201,31 +213,54 @@ export function IconBar() {
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Avatar */}
-      <button
-        type="button"
-        onClick={handleSignOut}
-        disabled={signingOut}
-        style={{
-          width: "32px",
-          height: "32px",
-          borderRadius: "50%",
-          background: brandColor,
-          color: "#fff",
-          fontSize: "13px",
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: "none",
-          cursor: "pointer",
-          opacity: signingOut ? 0.5 : 1,
-          transition: "opacity 150ms",
-        }}
-        title="Sair"
-      >
-        U
-      </button>
+      {/* Avatar dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          style={{
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            background: brandColor,
+            color: "#fff",
+            fontSize: "13px",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            cursor: "pointer",
+            opacity: signingOut ? 0.5 : 1,
+            transition: "opacity 150ms",
+          }}
+        >
+          {userInitial}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="right" align="end" sideOffset={8}>
+          <div style={{ padding: "4px 8px 6px" }}>
+            <p style={{ fontSize: "13px", fontWeight: 500, color: "#1a1a1a" }}>
+              {userName}
+            </p>
+            {userEmail && (
+              <p style={{ fontSize: "12px", color: "#999" }}>{userEmail}</p>
+            )}
+          </div>
+          <DropdownMenuSeparator />
+          {showInternal && (
+            <DropdownMenuItem onClick={() => router.push("/settings")}>
+              <Settings size={14} style={{ marginRight: "8px" }} />
+              Configurações
+            </DropdownMenuItem>
+          )}
+          {showInternal && <DropdownMenuSeparator />}
+          <DropdownMenuItem
+            onClick={handleSignOut}
+            className="text-red-600 focus:text-red-600"
+          >
+            <LogOut size={14} style={{ marginRight: "8px" }} />
+            Sair
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </nav>
   );
 }
