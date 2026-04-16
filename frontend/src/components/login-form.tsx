@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
 import { studioConfig } from "@/lib/runtime-config";
 
 interface LoginFormProps {
@@ -24,6 +23,11 @@ export function LoginForm({
   const [password, setPassword] = useState(defaultPassword);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const brandColor =
+    studioConfig.brand.kind === "solid"
+      ? studioConfig.brand.color
+      : studioConfig.brand.to;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,105 +51,165 @@ export function LoginForm({
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Painel esquerdo — brand da instância (escondido no mobile) */}
-      <div className="brand-bg relative hidden w-[45%] overflow-hidden md:flex md:flex-col md:justify-between">
-        {/* Overlay sutil pra dar profundidade tanto em solid quanto em gradient */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.10), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(0,0,0,0.15), transparent 50%)",
-          }}
-        />
-
-        <div className="relative z-10 flex flex-1 flex-col justify-center px-10 lg:px-14">
-          <h1 className="mb-4 text-3xl font-semibold tracking-tight text-white lg:text-4xl">
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        background: "#F0F0EE",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "400px",
+          background: "#fff",
+          borderRadius: "16px",
+          padding: "32px",
+        }}
+      >
+        {/* Header */}
+        <div style={{ marginBottom: "24px", textAlign: "center" }}>
+          <h1
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              color: "#1a1a1a",
+              marginBottom: "4px",
+            }}
+          >
             {studioConfig.name}
           </h1>
-          <p className="max-w-sm text-sm leading-relaxed text-white/70">
-            Sua plataforma de conhecimento e conversa com {studioConfig.agentName}.
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#999",
+            }}
+          >
+            Acesse sua conta
           </p>
         </div>
-      </div>
 
-      {/* Painel direito — formulário */}
-      <div className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
-          {/* Título no mobile (painel esquerdo está oculto) */}
-          <div className="mb-8 md:hidden">
-            <h1 className="text-base font-semibold tracking-tight">
-              {studioConfig.name}
-            </h1>
+        {helperMessage && (
+          <div
+            style={{
+              marginBottom: "16px",
+              borderRadius: "12px",
+              background: "#f9f9f8",
+              padding: "12px 16px",
+              fontSize: "13px",
+              color: "#666",
+            }}
+          >
+            {helperMessage}
           </div>
+        )}
 
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold">Entrar</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Acesse {studioConfig.name}
-            </p>
+        {showBootstrapHint && (
+          <div
+            style={{
+              marginBottom: "16px",
+              borderRadius: "12px",
+              background: "#f9f9f8",
+              border: "1px solid #f0f0f0",
+              padding: "12px 16px",
+              fontSize: "13px",
+              color: "#666",
+            }}
+          >
+            Primeiro admin criado automaticamente a partir de
+            <strong> ADMIN_EMAIL</strong> e <strong>ADMIN_PASSWORD</strong>.
+            Entre e troque a senha em <strong>/settings</strong>.
           </div>
+        )}
 
-          {helperMessage && (
-            <div className="mb-4 rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-              {helperMessage}
-            </div>
-          )}
-
-          {showBootstrapHint && (
-            <div className="mb-4 rounded-lg bg-primary/5 border border-primary/10 px-4 py-3 text-sm text-muted-foreground">
-              Primeiro admin criado automaticamente a partir de
-              <strong> ADMIN_EMAIL</strong> e <strong>ADMIN_PASSWORD</strong>.
-              Entre e troque a senha em <strong>/settings</strong>.
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                className="flex h-10 w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/20"
-                placeholder="Digite seu email"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Senha
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                minLength={8}
-                className="flex h-10 w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/20"
-                placeholder="Digite sua senha"
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="brand-bg w-full h-10 text-white hover:opacity-90"
-              disabled={loading}
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: "16px" }}>
+            <label
+              htmlFor="email"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#1a1a1a",
+                marginBottom: "6px",
+              }}
             >
-              {loading ? "Entrando..." : "Entrar"}
-            </Button>
-          </form>
-        </div>
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              placeholder="Digite seu email"
+              className="login-input"
+            />
+          </div>
+          <div style={{ marginBottom: "20px" }}>
+            <label
+              htmlFor="password"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#1a1a1a",
+                marginBottom: "6px",
+              }}
+            >
+              Senha
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              minLength={8}
+              placeholder="Digite sua senha"
+              className="login-input"
+            />
+          </div>
+
+          {error && (
+            <div
+              style={{
+                marginBottom: "16px",
+                borderRadius: "12px",
+                background: "#FEF2F2",
+                padding: "12px 16px",
+                fontSize: "13px",
+                color: "#DC2626",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              height: "44px",
+              borderRadius: "20px",
+              fontSize: "14px",
+              fontWeight: 500,
+              color: "#fff",
+              background: brandColor,
+              border: "none",
+              cursor: "pointer",
+              transition: "opacity 150ms",
+              opacity: loading ? 0.6 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
       </div>
     </div>
   );
