@@ -18,7 +18,7 @@ import {
 } from "@/lib/api-client";
 import { studioConfig } from "@/lib/runtime-config";
 
-const ACCEPTED_EXTENSIONS = ".txt,.md,.csv,.pdf,.docx";
+const ACCEPTED_EXTENSIONS = ".txt,.md,.csv,.pdf,.docx,.xlsx";
 
 const SUGGESTIONS_GYROS = [
   "Resumir um documento",
@@ -27,9 +27,9 @@ const SUGGESTIONS_GYROS = [
 ];
 
 const SUGGESTIONS_CURADORIA = [
-  "Resumir um documento",
-  "Buscar na base de conhecimento",
-  "Tirar dúvidas sobre a curadoria",
+  "STATUS — hoje",
+  "REGISTRAR — ata da reunião",
+  "DECIDIR — reciclar instrutor X",
 ];
 
 function getSuggestions(): string[] {
