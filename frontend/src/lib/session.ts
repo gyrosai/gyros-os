@@ -23,9 +23,15 @@ import { ensureFrontendRuntimeConfig } from "@/lib/runtime-config";
 export async function requireSession() {
   ensureFrontendRuntimeConfig();
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const h = await headers();
+
+  // Debug: lista todos os cookies que chegaram
+  const cookieHeader = h.get("cookie");
+  console.log("[SESSION_DEBUG] cookie header:", cookieHeader ? cookieHeader.substring(0, 100) : "EMPTY");
+  console.log("[SESSION_DEBUG] has session token:", cookieHeader?.includes("better-auth.session_token") ?? false);
+
+  const session = await auth.api.getSession({ headers: h });
+  console.log("[SESSION_DEBUG] session result:", session ? "FOUND" : "NULL");
 
   if (!session) {
     redirect("/login");
