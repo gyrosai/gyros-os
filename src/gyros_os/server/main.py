@@ -51,7 +51,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("server_starting", port=settings.port)
 
     pool = await get_pool()
-    await run_migrations(pool)
+    try:
+        await run_migrations(pool)
+    except Exception as e:
+        logger.warning("migrations_skipped", error=str(e))
     await bootstrap_langgraph_schema()
     logger.info("server_ready")
 
