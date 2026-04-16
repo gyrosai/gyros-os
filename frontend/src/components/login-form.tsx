@@ -5,22 +5,10 @@ import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 import { studioConfig } from "@/lib/runtime-config";
 
-interface LoginFormProps {
-  defaultEmail?: string;
-  defaultPassword?: string;
-  showBootstrapHint?: boolean;
-  helperMessage?: string;
-}
-
-export function LoginForm({
-  defaultEmail = "",
-  defaultPassword = "",
-  showBootstrapHint = false,
-  helperMessage,
-}: LoginFormProps) {
+export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState(defaultEmail);
-  const [password, setPassword] = useState(defaultPassword);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -91,39 +79,6 @@ export function LoginForm({
             Acesse sua conta
           </p>
         </div>
-
-        {helperMessage && (
-          <div
-            style={{
-              marginBottom: "16px",
-              borderRadius: "12px",
-              background: "#f9f9f8",
-              padding: "12px 16px",
-              fontSize: "13px",
-              color: "#666",
-            }}
-          >
-            {helperMessage}
-          </div>
-        )}
-
-        {showBootstrapHint && (
-          <div
-            style={{
-              marginBottom: "16px",
-              borderRadius: "12px",
-              background: "#f9f9f8",
-              border: "1px solid #f0f0f0",
-              padding: "12px 16px",
-              fontSize: "13px",
-              color: "#666",
-            }}
-          >
-            Primeiro admin criado automaticamente a partir de
-            <strong> ADMIN_EMAIL</strong> e <strong>ADMIN_PASSWORD</strong>.
-            Entre e troque a senha em <strong>/settings</strong>.
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: "16px" }}>
