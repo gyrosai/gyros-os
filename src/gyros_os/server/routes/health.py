@@ -16,6 +16,15 @@ from gyros_os.shared.db import check_db_health
 router = APIRouter(tags=["health"])
 
 
+@router.get("/healthz")
+async def liveness() -> dict:
+    """Liveness probe — retorna 200 sempre que o processo está vivo.
+
+    NÃO depende de DB. Usado pelo Railway healthcheck.
+    """
+    return {"status": "alive"}
+
+
 @router.get("/health")
 async def health() -> JSONResponse:
     """Verifica saúde do serviço.
