@@ -36,11 +36,11 @@ import {
 } from "@/lib/api-client";
 import { studioConfig } from "@/lib/runtime-config";
 
-const ACCEPTED_EXTENSIONS = ".txt,.md,.csv,.pdf,.docx";
+const ACCEPTED_EXTENSIONS = ".txt,.md,.csv,.pdf,.docx,.xlsx";
 
 function fileIcon(fileName: string | null) {
   const ext = (fileName || "").split(".").pop()?.toLowerCase();
-  if (ext === "csv") return <FileSpreadsheet size={20} className="text-muted-foreground" />;
+  if (ext === "csv" || ext === "xlsx") return <FileSpreadsheet size={20} className="text-muted-foreground" />;
   return <FileText size={20} className="text-muted-foreground" />;
 }
 
@@ -101,35 +101,33 @@ export default function KbPage() {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
+    const baseIndex = uploading.length;
     const newUploading: UploadingFile[] = fileArray.map((f) => ({
       name: f.name,
       status: "uploading" as const,
     }));
     setUploading((prev) => [...prev, ...newUploading]);
 
-    await Promise.all(
-      fileArray.map(async (file, idx) => {
-        try {
-          await uploadDocument(file);
-          setUploading((prev) =>
-            prev.map((u, i) =>
-              i === prev.length - fileArray.length + idx
-                ? { ...u, status: "done" as const }
-                : u,
-            ),
-          );
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Erro no upload";
-          setUploading((prev) =>
-            prev.map((u, i) =>
-              i === prev.length - fileArray.length + idx
-                ? { ...u, status: "error" as const, error: msg }
-                : u,
-            ),
-          );
-        }
-      }),
-    );
+    // Upload sequencial (um por vez, evita sobrecarga)
+    for (let i = 0; i < fileArray.length; i++) {
+      try {
+        await uploadDocument(fileArray[i]);
+        setUploading((prev) =>
+          prev.map((u, idx) =>
+            idx === baseIndex + i ? { ...u, status: "done" as const } : u,
+          ),
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erro no upload";
+        setUploading((prev) =>
+          prev.map((u, idx) =>
+            idx === baseIndex + i
+              ? { ...u, status: "error" as const, error: msg }
+              : u,
+          ),
+        );
+      }
+    }
 
     // Refresh list and clear done uploads after a short delay
     await fetchDocs();
@@ -185,14 +183,24 @@ export default function KbPage() {
         </h1>
         <Button
           onClick={() => fileInputRef.current?.click()}
+          disabled={uploading.some((u) => u.status === "uploading")}
           style={{
             background: brandColor,
             borderRadius: "20px",
             gap: "6px",
           }}
         >
-          <Upload size={16} />
-          Upload
+          {uploading.some((u) => u.status === "uploading") ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Enviando...
+            </>
+          ) : (
+            <>
+              <Upload size={16} />
+              Upload
+            </>
+          )}
         </Button>
         <input
           ref={fileInputRef}
@@ -207,9 +215,20 @@ export default function KbPage() {
         />
       </div>
 
-      {/* Upload progress */}
+      {/* Upload progress banner */}
       {uploading.length > 0 && (
-        <div style={{ padding: "0 24px 8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div
+          style={{
+            margin: "0 24px 16px",
+            background: "#ffffff",
+            border: "1px solid #e5e5e5",
+            borderRadius: "12px",
+            padding: "12px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
           {uploading.map((u, i) => (
             <div
               key={`${u.name}-${i}`}
@@ -217,19 +236,28 @@ export default function KbPage() {
                 fontSize: "13px",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
-                color: u.status === "error" ? "#dc2626" : "#666",
+                gap: "10px",
               }}
             >
-              {u.status === "uploading" && <Loader2 size={14} className="animate-spin" />}
-              {u.status === "done" && <span style={{ color: "#16a34a" }}>&#10003;</span>}
-              {u.status === "error" && <span>&#10007;</span>}
-              <span>{u.name}</span>
-              {u.error && (
-                <span style={{ fontSize: "12px", color: "#dc2626" }}>
-                  — {u.error}
-                </span>
-              )}
+              {u.status === "uploading" && <Loader2 size={14} className="animate-spin" color="#888" />}
+              {u.status === "done" && <span style={{ color: "#16a34a", fontSize: "14px" }}>&#10003;</span>}
+              {u.status === "error" && <span style={{ color: "#dc2626", fontSize: "14px" }}>&#10007;</span>}
+              <span
+                style={{
+                  color: "#333",
+                  flex: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {u.name}
+              </span>
+              <span style={{ color: "#888", fontSize: "12px", flexShrink: 0 }}>
+                {u.status === "uploading" && "Enviando..."}
+                {u.status === "done" && "Indexado"}
+                {u.status === "error" && (u.error || "Erro")}
+              </span>
             </div>
           ))}
         </div>
@@ -349,7 +377,7 @@ export default function KbPage() {
                     <MoreVertical size={16} color="#999" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => downloadDocument(doc.id)}>
+                    <DropdownMenuItem onClick={() => downloadDocument(doc.id, doc.file_name ?? doc.title)}>
                       <Download size={14} style={{ marginRight: "8px" }} />
                       Download original
                     </DropdownMenuItem>
