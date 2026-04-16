@@ -26,11 +26,16 @@ def _get_client() -> openai.AsyncOpenAI:
     return _client
 
 
-async def embed_texts(texts: list[str]) -> list[list[float]]:
+async def embed_texts(
+    texts: list[str], *, batch_size: int = 100
+) -> list[list[float]]:
     """Generate embeddings for a list of texts.
+
+    Batches requests to stay under OpenAI's 300k token-per-request limit.
 
     Args:
         texts: List of strings to embed.
+        batch_size: Max chunks per API call (default 100).
 
     Returns:
         List of embedding vectors (each 1536-dim float list).
@@ -39,15 +44,19 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
         return []
 
     client = _get_client()
-    response = await client.embeddings.create(
-        model=MODEL,
-        input=texts,
-        dimensions=DIMS,
-    )
+    all_embeddings: list[list[float]] = []
 
-    # Sort by index to ensure order matches input
-    sorted_data = sorted(response.data, key=lambda x: x.index)
-    return [item.embedding for item in sorted_data]
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i : i + batch_size]
+        response = await client.embeddings.create(
+            model=MODEL,
+            input=batch,
+            dimensions=DIMS,
+        )
+        sorted_data = sorted(response.data, key=lambda x: x.index)
+        all_embeddings.extend([item.embedding for item in sorted_data])
+
+    return all_embeddings
 
 
 async def embed_query(text: str) -> list[float]:
