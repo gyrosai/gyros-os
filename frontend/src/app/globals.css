@@ -132,3 +132,14 @@
     @apply font-sans;
   }
 }
+
+/* Studio v0.1 — brand por instância (vars injetadas inline no <html>) */
+.brand-bg {
+  background: var(--brand-gradient, var(--brand-solid));
+}
+.brand-text {
+  color: var(--brand-solid);
+}
+.brand-border {
+  border-color: var(--brand-solid);
+}
