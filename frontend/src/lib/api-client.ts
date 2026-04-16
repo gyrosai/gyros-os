@@ -25,7 +25,6 @@ async function apiFetch<T>(
 
   if (!res.ok) {
     if (res.status === 401) {
-      window.location.href = "/login";
       throw new Error("Not authenticated");
     }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -74,8 +73,7 @@ export async function downloadDocument(docId: string, filename?: string): Promis
 
   if (!res.ok) {
     if (res.status === 401) {
-      window.location.href = "/login";
-      return;
+      throw new Error("Not authenticated");
     }
     throw new Error(`Download failed: ${res.status}`);
   }
