@@ -110,12 +110,28 @@ class Settings(BaseSettings):
     embedding_dims: int = 1536
     memory_search_limit: int = 5
 
+    # --- Studio v0.1: branding por instância (Forma C) ---
+    studio_name: str = "Gyros Studio"
+    agent_name: str = "Lyra"
+    features_enabled: str = "kb,chat,internal"
+    # Lido primariamente pelo frontend via NEXT_PUBLIC_STUDIO_BRAND; declarado
+    # aqui pra evitar descarte silencioso caso venha em .env compartilhado.
+    studio_brand: str = "gradient:135deg,#9333EA,#7E22CE"
+
     # --- Fatia 3.2: OAuth Google Calendar ---
     google_oauth_client_id: str = ""
     google_oauth_client_secret: SecretStr | None = None
     google_oauth_redirect_uri: str = ""
     google_oauth_scopes: str = ""
     oauth_token_encryption_key: SecretStr | None = None
+
+    def get_features_enabled(self) -> set[str]:
+        """Parse CSV de features ativas (lowercase, trim)."""
+        return {
+            f.strip().lower()
+            for f in self.features_enabled.split(",")
+            if f.strip()
+        }
 
     @property
     def resolved_twilio_outbound_mode(self) -> str:
