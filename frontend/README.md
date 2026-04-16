@@ -112,6 +112,18 @@ AGENT_NAME=Curadora
 FEATURES_ENABLED=kb,chat
 ```
 
+Para rodar localmente em porta diferente, passe `BETTER_AUTH_URL` com a
+porta correta (Better Auth valida a origem das requests):
+
+```bash
+NEXT_PUBLIC_STUDIO_NAME="Curadoria CIMI360" \
+NEXT_PUBLIC_AGENT_NAME="Curadora" \
+NEXT_PUBLIC_STUDIO_BRAND="solid:#374151" \
+NEXT_PUBLIC_FEATURES_ENABLED="kb,chat" \
+BETTER_AUTH_URL="http://localhost:3001" \
+PORT=3001 pnpm dev
+```
+
 ### Exemplo: instância Gyros (default)
 
 Sem env vars, app inicia como Gyros Studio com Lyra, gradient roxo e
