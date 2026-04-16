@@ -75,6 +75,53 @@ Nesse modo:
 - `api` e obrigatoria para paginas que consultam `/api/*`
 - `worker` nao e necessario para revisao visual
 
+## Configurando uma instância (Forma C)
+
+Cada deploy usa env vars pra customizar nome, agente, cor e features. Todas
+opcionais — defaults são da instância Gyros Studio.
+
+**Frontend (precisam do prefixo `NEXT_PUBLIC_` pra chegar no browser):**
+
+| Variável | Default | Descrição |
+|---|---|---|
+| `NEXT_PUBLIC_STUDIO_NAME` | `Gyros Studio` | Nome exibido no header e `<title>` |
+| `NEXT_PUBLIC_AGENT_NAME` | `Lyra` | Nome do agente referenciado nas telas |
+| `NEXT_PUBLIC_STUDIO_BRAND` | `gradient:135deg,#9333EA,#7E22CE` | Cor de marca. Formatos: `solid:#HEX` ou `gradient:ANGdeg,#HEX,#HEX` |
+| `NEXT_PUBLIC_FEATURES_ENABLED` | `kb,chat,internal` | CSV de features ativas |
+
+**Backend** (em `src/gyros_os/shared/config.py`, via `settings.*`):
+`STUDIO_NAME`, `AGENT_NAME`, `STUDIO_BRAND`, `FEATURES_ENABLED`.
+
+### Feature flags
+
+- `kb` — exibe Base de Conhecimento no menu e home
+- `chat` — exibe Chat com o agente no menu e home
+- `internal` — exibe a navegação operacional (Dashboard, Fila WhatsApp,
+  Reuniões, Agentes, Settings). Desabilitado em instâncias-cliente pra
+  evitar ruído operacional.
+
+### Exemplo: instância Curadoria CIMI360
+
+```env
+NEXT_PUBLIC_STUDIO_NAME=Curadoria CIMI360
+NEXT_PUBLIC_AGENT_NAME=Curadora
+NEXT_PUBLIC_STUDIO_BRAND=solid:#1F2937
+NEXT_PUBLIC_FEATURES_ENABLED=kb,chat
+STUDIO_NAME=Curadoria CIMI360
+AGENT_NAME=Curadora
+FEATURES_ENABLED=kb,chat
+```
+
+### Exemplo: instância Gyros (default)
+
+Sem env vars, app inicia como Gyros Studio com Lyra, gradient roxo e
+navegação operacional visível.
+
+### Fonte por instância
+
+Se `STUDIO_NAME` contém "Gyros", usa Plus Jakarta Sans. Caso contrário,
+Inter (neutro premium). Muda automaticamente por build.
+
 ## Build
 
 ```bash
