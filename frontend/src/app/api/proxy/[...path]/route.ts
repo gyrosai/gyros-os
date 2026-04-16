@@ -46,51 +46,36 @@ async function proxyRequest(
   };
 
   const contentType = request.headers.get("content-type") || "";
-  let body: BodyInit | undefined;
 
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    if (contentType.includes("multipart/form-data")) {
-      // File upload — re-stream the formData; don't set Content-Type
-      // so fetch generates the boundary automatically.
-      body = await request.formData();
-    } else {
-      baseHeaders["Content-Type"] = contentType || "application/json";
-      body = await request.text();
-    }
+  if (contentType) {
+    baseHeaders["Content-Type"] = contentType;
   }
 
-  // For multipart, omit Content-Type so fetch sets boundary
-  const fetchHeaders = contentType.includes("multipart/form-data")
-    ? {
-        Authorization: baseHeaders.Authorization,
-        "X-User-Id": baseHeaders["X-User-Id"],
-        "X-User-Email": baseHeaders["X-User-Email"],
-      }
-    : baseHeaders;
+  // Stream body directly — never buffer uploads in memory
+  const body =
+    request.method !== "GET" && request.method !== "HEAD"
+      ? request.body
+      : undefined;
 
   try {
     const backendRes = await fetch(url.toString(), {
       method: request.method,
-      headers: fetchHeaders,
+      headers: baseHeaders,
       body,
+      // @ts-expect-error — duplex required for streaming request body
+      duplex: "half",
     });
 
-    // Stream binary responses (file downloads) as-is
-    const resContentType =
-      backendRes.headers.get("Content-Type") || "application/json";
-
-    const responseBody = await backendRes.arrayBuffer();
-
     const resHeaders: Record<string, string> = {
-      "Content-Type": resContentType,
+      "Content-Type":
+        backendRes.headers.get("Content-Type") || "application/json",
     };
-    // Forward Content-Disposition for downloads
     const disposition = backendRes.headers.get("Content-Disposition");
     if (disposition) {
       resHeaders["Content-Disposition"] = disposition;
     }
 
-    return new NextResponse(responseBody, {
+    return new NextResponse(backendRes.body, {
       status: backendRes.status,
       headers: resHeaders,
     });
