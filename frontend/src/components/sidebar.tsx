@@ -1,63 +1,135 @@
 "use client";
 
 /**
- * Sidebar G4-style — duas zonas verticais:
- *   1. Header (nome do studio)
- *   2. CTA "Nova conversa" + nav primária (kb, chat) — gated por features
- *   3. Área de threads (placeholder nesta fatia — Fatia 4.3 popula)
- *   4. Nav secundária (operacional, gated por feature "internal")
- *   5. Rodapé com logout
+ * Sidebar G4-OS — duas peças:
+ *   1. IconBar (52px): ícones de navegação sobre o cinza base
+ *   2. SessionsPanel (252px): card branco flutuante com threads
  */
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  MessageSquare,
-  BookOpen,
-  LayoutDashboard,
-  ListOrdered,
-  Video,
-  Bot,
-  ShieldCheck,
-  LogOut,
-  Menu,
-  X,
-  Plus,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth-client";
 import { studioConfig } from "@/lib/runtime-config";
-import { cn } from "@/lib/utils";
 
-type NavItem = {
+/* ── SVG Icons (inline, com stroke-linecap/linejoin round) ── */
+
+function ChatIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={active ? "#444" : "#888"}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function KbIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={active ? "#444" : "#888"}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
+function DashboardIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={active ? "#444" : "#888"}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={active ? "#444" : "#888"}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+/* ── Icon button wrapper ── */
+
+function IconButton({
+  href,
+  active,
+  children,
+}: {
   href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-};
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        width: "38px",
+        height: "38px",
+        borderRadius: "10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: active ? "rgba(0,0,0,0.07)" : "transparent",
+        transition: "background 150ms",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = "transparent";
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
 
-const PRIMARY_NAV: Array<NavItem & { feature: string }> = [
-  { href: "/chat", label: "Chat", icon: MessageSquare, feature: "chat" },
-  { href: "/kb", label: "Base de Conhecimento", icon: BookOpen, feature: "kb" },
-];
+/* ── IconBar (52px) ── */
 
-const INTERNAL_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/queue", label: "Fila WhatsApp", icon: ListOrdered },
-  { href: "/chats", label: "Reuniões", icon: Video },
-  { href: "/agents", label: "Agentes", icon: Bot },
-  { href: "/settings", label: "Settings", icon: ShieldCheck },
-];
-
-export function Sidebar() {
+export function IconBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  const primaryItems = PRIMARY_NAV.filter((item) =>
-    studioConfig.features.has(item.feature)
-  );
   const showInternal = studioConfig.features.has("internal");
 
   function isActive(href: string): boolean {
@@ -70,128 +142,229 @@ export function Sidebar() {
     try {
       await signOut();
     } finally {
-      setOpen(false);
       router.push("/login");
       router.refresh();
       setSigningOut(false);
     }
   }
 
-  function handleNewConversation() {
-    // TODO: nova conversa — Fatia 4.3
-    console.log("TODO: nova conversa — Fatia 4.3");
-  }
+  const brandColor =
+    studioConfig.brand.kind === "solid"
+      ? studioConfig.brand.color
+      : studioConfig.brand.to;
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden"
-        onClick={() => setOpen(!open)}
-      >
-        {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
-
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
-          onClick={() => setOpen(false)}
-        />
+    <nav
+      style={{
+        width: "52px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        paddingTop: "12px",
+        paddingBottom: "12px",
+        gap: "4px",
+        flexShrink: 0,
+      }}
+    >
+      {/* Primary nav: Chat, KB */}
+      {studioConfig.features.has("chat") && (
+        <IconButton href="/chat" active={isActive("/chat") || isActive("/")}>
+          <ChatIcon active={isActive("/chat") || isActive("/")} />
+        </IconButton>
+      )}
+      {studioConfig.features.has("kb") && (
+        <IconButton href="/kb" active={isActive("/kb")}>
+          <KbIcon active={isActive("/kb")} />
+        </IconButton>
       )}
 
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col border-r bg-muted/30 transition-transform md:translate-x-0",
-          open ? "translate-x-0" : "-translate-x-full"
-        )}
+      {/* Separator + internal nav */}
+      {showInternal && (
+        <>
+          <div
+            style={{
+              width: "24px",
+              height: "1px",
+              background: "rgba(0,0,0,0.1)",
+              margin: "4px 0",
+            }}
+          />
+          <IconButton href="/dashboard" active={isActive("/dashboard")}>
+            <DashboardIcon active={isActive("/dashboard")} />
+          </IconButton>
+          <IconButton href="/settings" active={isActive("/settings")}>
+            <SettingsIcon active={isActive("/settings")} />
+          </IconButton>
+        </>
+      )}
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Avatar */}
+      <button
+        type="button"
+        onClick={handleSignOut}
+        disabled={signingOut}
+        style={{
+          width: "32px",
+          height: "32px",
+          borderRadius: "50%",
+          background: brandColor,
+          color: "#fff",
+          fontSize: "13px",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "none",
+          cursor: "pointer",
+          opacity: signingOut ? 0.5 : 1,
+          transition: "opacity 150ms",
+        }}
+        title="Sair"
       >
-        {/* Header — texto-only, tipografia protagonista */}
-        <div className="px-4 py-5 border-b">
-          <h1 className="text-base font-semibold tracking-tight">
-            {studioConfig.name}
-          </h1>
-        </div>
+        U
+      </button>
+    </nav>
+  );
+}
 
-        {/* CTA + nav primária */}
-        <div className="px-3 pt-4 pb-2 space-y-4">
+/* ── SessionsPanel (252px card branco) ── */
+
+export function SessionsPanel() {
+  const [activeTab, setActiveTab] = useState<"recentes" | "favoritas">(
+    "recentes"
+  );
+
+  return (
+    <aside
+      style={{
+        width: "252px",
+        background: "#fff",
+        borderRadius: "14px",
+        margin: "8px 0 8px 0",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        flexShrink: 0,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "16px 16px 12px",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#1a1a1a",
+            marginBottom: "12px",
+          }}
+        >
+          {studioConfig.name}
+        </h2>
+
+        {/* Botão Nova sessão */}
+        <button
+          type="button"
+          style={{
+            width: "100%",
+            height: "38px",
+            borderRadius: "10px",
+            border: "1px solid #ddd",
+            background: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            fontSize: "13px",
+            fontWeight: 500,
+            color: "#555",
+            cursor: "pointer",
+            transition: "background 150ms",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#f8f8f8";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#fff";
+          }}
+          onClick={() => {
+            console.log("TODO: nova sessão — Fatia 4.3");
+          }}
+        >
+          <span style={{ fontSize: "16px", lineHeight: 1 }}>+</span>
+          Nova sessão
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "16px",
+          padding: "0 16px",
+          borderBottom: "1px solid #f0f0f0",
+        }}
+      >
+        {(["recentes", "favoritas"] as const).map((tab) => (
           <button
+            key={tab}
             type="button"
-            onClick={handleNewConversation}
-            className="brand-bg flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+            onClick={() => setActiveTab(tab)}
+            style={{
+              fontSize: "12px",
+              fontWeight: 500,
+              color: activeTab === tab ? "#555" : "#bbb",
+              background: "none",
+              border: "none",
+              borderBottom:
+                activeTab === tab ? "2px solid #555" : "2px solid transparent",
+              padding: "8px 0",
+              cursor: "pointer",
+              textTransform: "capitalize",
+              transition: "color 150ms",
+            }}
           >
-            <Plus className="h-4 w-4" />
-            Nova conversa
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
+        ))}
+      </div>
 
-          {primaryItems.length > 0 && (
-            <nav className="space-y-0.5">
-              {primaryItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                    isActive(item.href)
-                      ? "bg-muted brand-text font-medium"
-                      : "text-foreground/70 hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          )}
-        </div>
-
-        {/* Threads — placeholder 4.0, populado na 4.3 */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-            Conversas
-          </p>
-          <p className="text-xs italic text-muted-foreground/70">
-            Em breve — suas conversas com {studioConfig.agentName} aparecerão
-            aqui.
-          </p>
-        </div>
-
-        {/* Nav secundária (operacional) */}
-        {showInternal && (
-          <nav className="px-3 py-3 border-t space-y-0.5">
-            {INTERNAL_NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-xs transition-colors",
-                  isActive(item.href)
-                    ? "bg-muted text-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                )}
-              >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
-
-        {/* Rodapé: logout */}
-        <div className="px-3 py-3 border-t">
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-50"
-          >
-            <LogOut className="h-4 w-4" />
-            {signingOut ? "Saindo..." : "Sair"}
-          </button>
-        </div>
-      </aside>
-    </>
+      {/* Threads area */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "16px",
+        }}
+      >
+        {/* Date group label */}
+        <p
+          style={{
+            fontSize: "10.5px",
+            textTransform: "uppercase",
+            color: "#ccc",
+            letterSpacing: "0.05em",
+            fontWeight: 500,
+            marginBottom: "8px",
+          }}
+        >
+          Hoje
+        </p>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#bbb",
+            lineHeight: 1.5,
+          }}
+        >
+          Suas conversas com {studioConfig.agentName} aparecerão aqui.
+        </p>
+      </div>
+    </aside>
   );
 }
