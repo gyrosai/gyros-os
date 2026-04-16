@@ -6,4 +6,4 @@ cmds = [
 ]
 
 [start]
-cmd = "/opt/venv/bin/uvicorn gyros_os.server.main:app --host 0.0.0.0 --port 8080"
+cmd = "bash scripts/start.sh"
