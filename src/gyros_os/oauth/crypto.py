@@ -41,18 +41,25 @@ def _get_fernet() -> Fernet:
 
     key_secret = settings.oauth_token_encryption_key
     if key_secret is None:
+        print("[FERNET_DEBUG] oauth_token_encryption_key is None")
         raise RuntimeError(
             "OAUTH_TOKEN_ENCRYPTION_KEY não configurada ou inválida — "
             "gere uma com Fernet.generate_key()"
         )
 
+    raw = key_secret.get_secret_value()
+    print(f"[FERNET_DEBUG] raw length: {len(raw)}")
+    print(f"[FERNET_DEBUG] first 10: {repr(raw[:10])}")
+    print(f"[FERNET_DEBUG] last 5: {repr(raw[-5:])}")
+    print(f"[FERNET_DEBUG] has whitespace: {raw != raw.strip()}")
+    print(f"[FERNET_DEBUG] has newline: {chr(10) in raw or chr(13) in raw}")
+
     try:
-        _fernet = Fernet(key_secret.get_secret_value().encode())
-    except ValueError as exc:
-        raise RuntimeError(
-            "OAUTH_TOKEN_ENCRYPTION_KEY não configurada ou inválida — "
-            "gere uma com Fernet.generate_key()"
-        ) from exc
+        _fernet = Fernet(raw.encode())
+        print("[FERNET_DEBUG] Fernet initialized OK")
+    except Exception as exc:
+        print(f"[FERNET_DEBUG] Fernet init FAILED: {type(exc).__name__}: {exc}")
+        raise
 
     return _fernet
 
