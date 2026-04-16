@@ -171,15 +171,33 @@ async def check_rate_limit(phone_number: str) -> None:
 
 
 async def get_current_user(request: Request) -> dict:
-    """Valida sessão Better Auth e retorna info do usuário autenticado.
+    """Valida sessão e retorna info do usuário autenticado.
 
-    Lê o cookie ``better-auth.session_token``, consulta as tabelas
-    ``auth.session`` / ``auth."user"`` no Postgres e retorna um dict
-    com ``user_id``, ``email`` e ``name``.
+    Aceita duas formas de autenticação:
+
+    1. **Service token + headers** (produção, via proxy Next.js):
+       O frontend valida a sessão server-side e repassa a request
+       com ``Authorization: Bearer <service_token>`` + ``X-User-Id``
+       + ``X-User-Email``.
+
+    2. **Cookie Better Auth** (dev local, browser direto):
+       Lê o cookie ``better-auth.session_token``, consulta as tabelas
+       ``auth.session`` / ``auth."user"`` no Postgres.
 
     Raises:
-        HTTPException 401: Cookie ausente ou sessão inválida/expirada.
+        HTTPException 401: Nenhuma autenticação válida encontrada.
     """
+    # Opção 1: service token via proxy (produção)
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer ") and settings.internal_service_token:
+        token = auth_header.removeprefix("Bearer ").strip()
+        if hmac.compare_digest(token, settings.internal_service_token):
+            user_id = request.headers.get("X-User-Id", "")
+            email = request.headers.get("X-User-Email", "")
+            if user_id:
+                return {"user_id": user_id, "email": email, "name": ""}
+
+    # Opção 2: cookie Better Auth (dev local)
     raw_cookie = request.cookies.get("better-auth.session_token")
     if not raw_cookie:
         raise HTTPException(status_code=401, detail="Not authenticated")

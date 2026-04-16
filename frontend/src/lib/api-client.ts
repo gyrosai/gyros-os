@@ -1,22 +1,20 @@
 /**
  * Cliente HTTP tipado para consumo client-side (browser).
  *
- * Diferente de api.ts (server-only, usa INTERNAL_SERVICE_TOKEN),
- * este módulo faz requests diretos do browser para a API com
- * credentials: "include" para enviar o cookie Better Auth.
- *
- * Usado pelas telas /kb e /chat (Client Components).
+ * Todas as requests passam pelo proxy Next.js (/api/proxy/...)
+ * que valida a sessao server-side e repassa pro backend com
+ * service token. Isso resolve o problema de cross-origin:
+ * o cookie Better Auth so e enviado pro dominio do frontend.
  */
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function apiFetch<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
+  // /api/kb/docs -> /api/proxy/kb/docs
+  const proxyPath = path.replace("/api/", "/api/proxy/");
+
+  const res = await fetch(proxyPath, {
     ...options,
     headers: {
       ...options?.headers,
@@ -24,9 +22,6 @@ async function apiFetch<T>(
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
-      throw new Error("Not authenticated");
-    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `API error ${res.status}`);
   }
@@ -67,14 +62,9 @@ export async function deleteDocument(docId: string): Promise<void> {
 }
 
 export async function downloadDocument(docId: string, filename?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/kb/docs/${docId}/download`, {
-    credentials: "include",
-  });
+  const res = await fetch(`/api/proxy/kb/docs/${docId}/download`);
 
   if (!res.ok) {
-    if (res.status === 401) {
-      throw new Error("Not authenticated");
-    }
     throw new Error(`Download failed: ${res.status}`);
   }
 
