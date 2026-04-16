@@ -173,11 +173,10 @@ function ChatContent() {
       // Notify sidebar to refresh threads
       window.dispatchEvent(new CustomEvent("threads-updated"));
     } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : "Erro ao enviar mensagem";
+      console.error("[Chat] Error:", err);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Erro: ${errorMsg}` },
+        { role: "assistant", content: "Desculpe, não consegui processar sua mensagem agora. Tente novamente em alguns instantes." },
       ]);
     } finally {
       setSending(false);
@@ -200,8 +199,8 @@ function ChatContent() {
       setUploadFeedback(`Documento "${file.name}" adicionado à base.`);
       setTimeout(() => setUploadFeedback(null), 4000);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro no upload";
-      setUploadFeedback(`Erro: ${msg}`);
+      console.error("[Chat] Upload error:", err);
+      setUploadFeedback("Não foi possível processar este arquivo. Tente um arquivo menor ou em outro formato.");
       setTimeout(() => setUploadFeedback(null), 4000);
     }
   }

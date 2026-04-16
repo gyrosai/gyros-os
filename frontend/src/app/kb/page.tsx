@@ -118,11 +118,11 @@ export default function KbPage() {
           ),
         );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Erro no upload";
+        console.error("[KB] Upload error:", err);
         setUploading((prev) =>
           prev.map((u, idx) =>
             idx === baseIndex + i
-              ? { ...u, status: "error" as const, error: msg }
+              ? { ...u, status: "error" as const, error: "Não foi possível processar este arquivo. Tente um arquivo menor ou em outro formato." }
               : u,
           ),
         );
