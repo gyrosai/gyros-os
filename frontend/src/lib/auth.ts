@@ -26,6 +26,14 @@ export const auth = betterAuth({
     disableSignUp: true,
   },
 
+  // Permite login de instâncias em portas diferentes (ex: Curadoria em 3001).
+  // TRUSTED_ORIGINS aceita CSV para origens adicionais em deploy.
+  trustedOrigins: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    ...(process.env.TRUSTED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) ?? []),
+  ],
+
   // nextCookies permite que Server Actions e Route Handlers
   // gerenciem cookies de sessão automaticamente
   plugins: [nextCookies()],
