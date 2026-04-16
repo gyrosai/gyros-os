@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { studioConfig } from "@/lib/runtime-config";
 
 interface LoginFormProps {
   defaultEmail?: string;
@@ -48,46 +48,23 @@ export function LoginForm({
 
   return (
     <div className="flex min-h-screen">
-      {/* Painel esquerdo — identidade da marca (escondido no mobile) */}
-      <div className="relative hidden w-[45%] overflow-hidden bg-hawk-navy-deep md:flex md:flex-col md:justify-between">
-        {/* Gradiente sutil */}
+      {/* Painel esquerdo — brand da instância (escondido no mobile) */}
+      <div className="brand-bg relative hidden w-[45%] overflow-hidden md:flex md:flex-col md:justify-between">
+        {/* Overlay sutil pra dar profundidade tanto em solid quanto em gradient */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at 30% 20%, oklch(0.25 0.10 200 / 0.4), transparent 60%), radial-gradient(ellipse at 80% 80%, oklch(0.20 0.08 265 / 0.3), transparent 50%)",
+              "radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.10), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(0,0,0,0.15), transparent 50%)",
           }}
         />
 
-        {/* Conteúdo */}
         <div className="relative z-10 flex flex-1 flex-col justify-center px-10 lg:px-14">
-          {/* Marca */}
-          <div className="mb-8">
-            <div className="mb-3 flex items-center gap-3">
-              <Image src="/logo-hawk.png" alt="rhawk.pro" width={32} height={32} className="rounded" unoptimized />
-              <span className="text-lg font-semibold tracking-tight text-white/90">
-                rhawk.pro
-              </span>
-            </div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-hawk-blue/80">
-              Harness para agentes de WhatsApp
-            </p>
-          </div>
-
-          {/* Descrição */}
-          <h1 className="mb-4 text-2xl font-semibold leading-tight text-white/90 lg:text-3xl">
-            Painel de operações
+          <h1 className="mb-4 text-3xl font-semibold tracking-tight text-white lg:text-4xl">
+            {studioConfig.name}
           </h1>
-          <p className="max-w-sm text-sm leading-relaxed text-white/40">
-            Métricas, fila de mensagens, conversas e configurações do harness em uma interface administrativa.
-          </p>
-        </div>
-
-        {/* Rodapé do painel */}
-        <div className="relative z-10 px-10 pb-8 lg:px-14">
-          <div className="h-px w-12 bg-hawk-blue/20" />
-          <p className="mt-3 text-[11px] text-white/25">
-            TOPHAWKS
+          <p className="max-w-sm text-sm leading-relaxed text-white/70">
+            Sua plataforma de conhecimento e conversa com {studioConfig.agentName}.
           </p>
         </div>
       </div>
@@ -95,19 +72,17 @@ export function LoginForm({
       {/* Painel direito — formulário */}
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          {/* Marca no mobile */}
-          <div className="mb-8 flex flex-col items-center md:hidden">
-            <div className="mb-3 flex items-center gap-2.5">
-              <Image src="/logo-hawk.png" alt="rhawk.pro" width={28} height={28} className="rounded" unoptimized />
-              <span className="text-lg font-semibold tracking-tight">rhawk.pro</span>
-            </div>
+          {/* Título no mobile (painel esquerdo está oculto) */}
+          <div className="mb-8 md:hidden">
+            <h1 className="text-base font-semibold tracking-tight">
+              {studioConfig.name}
+            </h1>
           </div>
 
-          {/* Cabeçalho do form */}
           <div className="mb-6">
             <h2 className="text-xl font-semibold">Entrar</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Acesse o painel administrativo
+              Acesse {studioConfig.name}
             </p>
           </div>
 
@@ -162,7 +137,11 @@ export function LoginForm({
               </div>
             )}
 
-            <Button type="submit" className="w-full h-10" disabled={loading}>
+            <Button
+              type="submit"
+              className="brand-bg w-full h-10 text-white hover:opacity-90"
+              disabled={loading}
+            >
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
