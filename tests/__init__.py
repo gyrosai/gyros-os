@@ -1,1 +1,1 @@
-"""Testes do whatsapp-langchain."""
+"""Testes do gyros-os."""

@@ -1,6 +1,6 @@
 # Frontend Admin Panel
 
-Painel administrativo em Next.js para operacao do projeto `whatsapp-langchain`.
+Painel administrativo em Next.js para operacao do projeto `gyros-os`.
 
 ## Desenvolvimento local
 
@@ -150,6 +150,6 @@ Na stack Docker, as variaveis do frontend sao definidas no proprio servico
 
 ## Referencias
 
-- [Primeiros Passos](/Users/ronnald/Documents/code/pro/whatsapp-langchain/docs/GETTING_STARTED.md)
-- [Deploy](/Users/ronnald/Documents/code/pro/whatsapp-langchain/docs/DEPLOY.md)
-- [Railway](/Users/ronnald/Documents/code/pro/whatsapp-langchain/docs/RAILWAY.md)
+- [Primeiros Passos](../docs/GETTING_STARTED.md)
+- [Deploy](../docs/DEPLOY.md)
+- [Railway](../docs/RAILWAY.md)

@@ -17,7 +17,7 @@ Este guia tem duas trilhas:
 
 ```bash
 git clone <repo-url>
-cd whatsapp-langchain
+cd gyros-os
 make setup
 cp .env.example .env
 ```

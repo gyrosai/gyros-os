@@ -17,7 +17,9 @@ from fastapi.responses import JSONResponse
 
 from gyros_os.agents.loader import AgentNotFoundError
 from gyros_os.server.routes.admin import router as admin_router
+from gyros_os.server.routes.chat import router as chat_router
 from gyros_os.server.routes.health import router as health_router
+from gyros_os.server.routes.kb import router as kb_router
 from gyros_os.server.routes.oauth_routes import router as oauth_router
 from gyros_os.server.routes.webhook import router as webhook_router
 from gyros_os.server.routes.webhooks_fireflies import router as fireflies_router
@@ -68,9 +70,13 @@ app = FastAPI(
 )
 
 # CORS para o frontend (Next.js)
+# allow_credentials=True requer origens explícitas (não wildcard).
+cors_origins = [
+    o.strip() for o in settings.cors_origins.split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -96,6 +102,8 @@ app.include_router(webhook_router)
 app.include_router(fireflies_router)
 app.include_router(oauth_router)
 app.include_router(admin_router)
+app.include_router(kb_router)
+app.include_router(chat_router)
 
 # Webhook sincrono — apenas para dev/testes, nunca em producao.
 # Em producao, use o webhook async (Twilio) que passa pela fila.

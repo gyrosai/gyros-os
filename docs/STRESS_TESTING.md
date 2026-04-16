@@ -42,7 +42,7 @@ Simula rajadas de 5-20 mensagens com intervalo de 0.1-0.5s entre elas (como um u
 ### Localmente (sem Docker)
 
 ```bash
-cd /caminho/para/whatsapp-langchain/stress
+cd /caminho/para/gyros-os/stress
 uv venv
 source .venv/bin/activate
 uv pip install -r requirements.txt

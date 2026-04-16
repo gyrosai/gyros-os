@@ -67,7 +67,7 @@ Separar API e Worker evita bloqueio na borda HTTP e melhora confiabilidade sob c
 
 ```bash
 git clone <repo-url>
-cd whatsapp-langchain
+cd gyros-os
 make setup
 cp .env.example .env
 ```
@@ -142,7 +142,7 @@ curl http://localhost:8000/api/chats
 ## Estrutura do Projeto
 
 ```text
-whatsapp-langchain/
+gyros-os/
 ├── src/gyros_os/
 │   ├── agents/        # Catálogo de agentes, middleware e tools
 │   ├── server/        # API FastAPI (webhooks + admin APIs)

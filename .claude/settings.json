@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(curl -s -b better-auth.session_token=RuzT80FxPKEJYSyufteUtWyaWCWjZNs4 http://localhost:8000/api/kb/docs)",
+      "Bash(echo \"Este é um documento de teste para a Curadoria CIMI360. Contém informações sobre gestão de conhecimento e automação com IA para processos educacionais.\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/kb/upload -F file=@/tmp/test_kb.txt -b better-auth.session_token=RuzT80FxPKEJYSyufteUtWyaWCWjZNs4)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -b better-auth.session_token=RuzT80FxPKEJYSyufteUtWyaWCWjZNs4 http://localhost:8000/api/chat/threads/studio_2cf43722-be0e-404e-bd57-d06b8ed9ff9c_0cf44263/messages)",
+      "Bash(curl -s http://localhost:8000/openapi.json)",
+      "Bash(brew list:*)"
+    ]
+  }
+}

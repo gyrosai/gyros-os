@@ -1,6 +1,6 @@
 # Gyros OS
 
-Extensão do harness `whatsapp-langchain` para automação interna da Gyros. Adiciona integração com Fireflies.ai para captura automática de transcrições de reuniões, pipeline RAG com pgvector sobre esses documentos, e uma fila de eventos genérica que suporta futuras integrações (Scheduler, Proposta, HITL). O objetivo é que o agente WhatsApp consiga responder perguntas baseadas em contexto real de reuniões.
+Sistema operacional interno da Gyros AI Solutions, construído sobre o harness whatsapp-langchain do Ronnald Hawk.
 
 ## O que foi adicionado (Week 1 — Foundation)
 

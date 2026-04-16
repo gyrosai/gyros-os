@@ -1,6 +1,6 @@
 # Deploy no Railway
 
-Guia completo para deploy do whatsapp-langchain no Railway, cobrindo topologia de serviços, rede interna, watch paths e todas as variáveis de ambiente necessárias.
+Guia completo para deploy do gyros-os no Railway, cobrindo topologia de serviços, rede interna, watch paths e todas as variáveis de ambiente necessárias.
 
 ## Topologia de Serviços
 
