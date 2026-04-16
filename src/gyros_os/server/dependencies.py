@@ -4,10 +4,14 @@ Dependencies são injetadas automaticamente nas rotas via Depends().
 Centralizar aqui mantém as rotas limpas e focadas na lógica de negócio.
 
 Uso:
-    from gyros_os.server.dependencies import check_rate_limit
+    from gyros_os.server.dependencies import check_rate_limit, get_current_user
 
     @router.post("/webhook/twilio")
     async def webhook(rate_limit: None = Depends(check_rate_limit)):
+        ...
+
+    @router.get("/api/kb/docs")
+    async def list_docs(user: dict = Depends(get_current_user)):
         ...
 """
 
@@ -20,6 +24,7 @@ from fastapi import HTTPException, Request
 from twilio.request_validator import RequestValidator  # type: ignore[import-untyped]
 
 from gyros_os.shared.config import settings
+from gyros_os.shared.db import get_pool
 
 logger = structlog.get_logger()
 
@@ -163,3 +168,41 @@ async def check_rate_limit(phone_number: str) -> None:
 
     # Registra nova requisição
     request_history[phone_number].append(now)
+
+
+async def get_current_user(request: Request) -> dict:
+    """Valida sessão Better Auth e retorna info do usuário autenticado.
+
+    Lê o cookie ``better-auth.session_token``, consulta as tabelas
+    ``auth.session`` / ``auth."user"`` no Postgres e retorna um dict
+    com ``user_id``, ``email`` e ``name``.
+
+    Raises:
+        HTTPException 401: Cookie ausente ou sessão inválida/expirada.
+    """
+    raw_cookie = request.cookies.get("better-auth.session_token")
+    if not raw_cookie:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Better Auth armazena cookies assinados no formato "token.hmac_signature".
+    # O DB guarda apenas o token puro, então extraímos a parte antes do último ".".
+    dot_pos = raw_cookie.rfind(".")
+    token = raw_cookie[:dot_pos] if dot_pos > 0 else raw_cookie
+
+    pool = await get_pool()
+    async with pool.connection() as conn:
+        cursor = await conn.execute(
+            """
+            SELECT u.id, u.email, u.name
+            FROM auth.session s
+            JOIN auth."user" u ON s."userId" = u.id
+            WHERE s.token = %s AND s."expiresAt" > NOW()
+            """,
+            (token,),
+        )
+        row = await cursor.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="Session expired")
+
+    return {"user_id": row[0], "email": row[1], "name": row[2]}
