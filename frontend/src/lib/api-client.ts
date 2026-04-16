@@ -67,7 +67,7 @@ export async function deleteDocument(docId: string): Promise<void> {
   await apiFetch(`/api/kb/docs/${docId}`, { method: "DELETE" });
 }
 
-export async function downloadDocument(docId: string): Promise<void> {
+export async function downloadDocument(docId: string, filename?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/kb/docs/${docId}/download`, {
     credentials: "include",
   });
@@ -81,17 +81,21 @@ export async function downloadDocument(docId: string): Promise<void> {
   }
 
   const blob = await res.blob();
-  const disposition = res.headers.get("Content-Disposition");
-  let filename = "download";
-  if (disposition) {
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    if (match) filename = match[1];
+
+  // Use provided filename, fall back to Content-Disposition header
+  let resolvedName = filename || "download";
+  if (!filename) {
+    const disposition = res.headers.get("Content-Disposition");
+    if (disposition) {
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match) resolvedName = match[1];
+    }
   }
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = resolvedName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
