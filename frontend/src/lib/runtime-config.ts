@@ -65,3 +65,53 @@ export function ensureFrontendRuntimeConfig(): void {
 export function canAutoBootstrapAdmin(): boolean {
   return !isProductionEnvironment();
 }
+
+// --- Studio v0.1: branding por instância (Forma C) ---
+
+export type BrandConfig =
+  | { kind: "solid"; color: string }
+  | { kind: "gradient"; angle: string; from: string; to: string };
+
+function parseBrand(raw: string): BrandConfig {
+  try {
+    const idx = raw.indexOf(":");
+    if (idx === -1) return { kind: "solid", color: "#7E22CE" };
+    const kind = raw.slice(0, idx).trim();
+    const rest = raw.slice(idx + 1).trim();
+
+    if (kind === "solid" && rest) {
+      return { kind: "solid", color: rest };
+    }
+    if (kind === "gradient" && rest) {
+      const parts = rest.split(",").map((p) => p.trim());
+      if (parts.length === 3) {
+        return { kind: "gradient", angle: parts[0], from: parts[1], to: parts[2] };
+      }
+    }
+  } catch {
+    // fallthrough
+  }
+  return { kind: "solid", color: "#7E22CE" };
+}
+
+function parseFeatures(raw: string): Set<string> {
+  return new Set(
+    raw
+      .split(",")
+      .map((f) => f.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+export const studioConfig = {
+  name: process.env.NEXT_PUBLIC_STUDIO_NAME ?? "Gyros Studio",
+  agentName: process.env.NEXT_PUBLIC_AGENT_NAME ?? "Lyra",
+  brand: parseBrand(
+    process.env.NEXT_PUBLIC_STUDIO_BRAND ?? "gradient:135deg,#9333EA,#7E22CE"
+  ),
+  features: parseFeatures(
+    process.env.NEXT_PUBLIC_FEATURES_ENABLED ?? "kb,chat,internal"
+  ),
+} as const;
+
+export type StudioConfig = typeof studioConfig;
