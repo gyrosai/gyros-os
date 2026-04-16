@@ -53,7 +53,6 @@ export function HomeChatInput({
           justifyContent: "center",
           padding: "0 32px",
           textAlign: "center",
-          background: "#FAFAFA",
         }}
       >
         <h1
@@ -102,14 +101,7 @@ export function HomeChatInput({
       </div>
 
       {/* Input area — anchored at bottom */}
-      <div
-        style={{
-          padding: "12px 20px 16px",
-          width: "100%",
-          background: "#fff",
-          borderTop: "1px solid #f0f0f0",
-        }}
-      >
+      <div style={{ padding: "8px 20px 4px", width: "100%" }}>
         <div className="chat-input-box">
           <textarea
             ref={textareaRef}
@@ -168,8 +160,8 @@ export function HomeChatInput({
             </button>
           </div>
         </div>
-        <p className="chat-hint">IA pode cometer erros. Verifique as respostas.</p>
       </div>
+      <p className="chat-hint">IA pode cometer erros. Verifique as respostas.</p>
     </>
   );
 }

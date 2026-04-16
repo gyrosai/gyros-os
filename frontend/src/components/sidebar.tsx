@@ -235,13 +235,32 @@ export function IconBar() {
         >
           {userInitial}
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="right" align="end" sideOffset={8}>
-          <div style={{ padding: "4px 8px 6px" }}>
-            <p style={{ fontSize: "13px", fontWeight: 500, color: "#1a1a1a" }}>
+        <DropdownMenuContent side="right" align="end" sideOffset={8} style={{ minWidth: "200px" }}>
+          <div style={{ padding: "4px 8px 6px", overflow: "hidden" }}>
+            <p
+              style={{
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#1a1a1a",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {userName}
             </p>
             {userEmail && (
-              <p style={{ fontSize: "12px", color: "#999" }}>{userEmail}</p>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#999",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {userEmail}
+              </p>
             )}
           </div>
           <DropdownMenuSeparator />

@@ -197,31 +197,32 @@
   background: #f8f8f8;
 }
 
-/* Chat input */
+/* Chat input — white island floating on #FAFAFA */
 .chat-input-box {
   border-radius: 20px;
-  border: 1px solid #d4d4d4;
+  border: 1px solid #e5e5e5;
   background: #ffffff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-  max-width: 620px;
+  max-width: 720px;
+  width: 100%;
   margin: 0 auto;
   overflow: hidden;
   transition: border-color 150ms, box-shadow 150ms;
 }
 .chat-input-box:focus-within {
-  border-color: #a0a0a0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-color: #b0b0b0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .chat-input-textarea {
   width: 100%;
-  min-height: 80px;
+  min-height: 60px;
   font-size: 15px;
-  color: #333;
+  color: #1a1a1a;
   background: transparent;
   border: none;
   outline: none;
   resize: none;
-  padding: 14px 16px 0;
+  padding: 14px 18px 6px;
+  line-height: 1.6;
   font-family: inherit;
 }
 .chat-input-textarea::placeholder {
@@ -265,7 +266,7 @@
   font-size: 11px;
   color: #c0c0c0;
   text-align: center;
-  margin-top: 8px;
+  padding: 6px 20px 12px;
 }
 
 /* Chat markdown prose */

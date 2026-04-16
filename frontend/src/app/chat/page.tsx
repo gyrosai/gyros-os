@@ -209,15 +209,16 @@ function ChatContent() {
   const showGreeting = messages.length === 0 && !loadingThread;
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        background: "#FAFAFA",
+      }}
+    >
       {/* Header */}
-      <div
-        style={{
-          padding: "14px 20px",
-          textAlign: "center",
-          borderBottom: "1px solid #f5f5f5",
-        }}
-      >
+      <div style={{ padding: "14px 20px", textAlign: "center" }}>
         <span style={{ fontSize: "13px", fontWeight: 500, color: "#aaa" }}>
           {studioConfig.name}
         </span>
@@ -230,7 +231,6 @@ function ChatContent() {
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          background: "#FAFAFA",
         }}
       >
         {/* Loading thread */}
@@ -400,14 +400,7 @@ function ChatContent() {
       )}
 
       {/* Input area */}
-      <div
-        style={{
-          padding: "12px 20px 16px",
-          width: "100%",
-          background: "#fff",
-          borderTop: "1px solid #f0f0f0",
-        }}
-      >
+      <div style={{ padding: "8px 20px 4px", width: "100%" }}>
         <div className="chat-input-box">
           <textarea
             ref={textareaRef}
@@ -476,8 +469,8 @@ function ChatContent() {
             </button>
           </div>
         </div>
-        <p className="chat-hint">IA pode cometer erros. Verifique as respostas.</p>
       </div>
+      <p className="chat-hint">IA pode cometer erros. Verifique as respostas.</p>
     </div>
   );
 }

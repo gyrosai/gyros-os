@@ -159,7 +159,7 @@ export default function KbPage() {
 
   return (
     <div
-      style={{ flex: 1, display: "flex", flexDirection: "column" }}
+      style={{ flex: 1, display: "flex", flexDirection: "column", background: "#FAFAFA" }}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -241,7 +241,6 @@ export default function KbPage() {
           flex: 1,
           padding: "0 24px 24px",
           overflowY: "auto",
-          background: "#FAFAFA",
           border: dragging ? "2px dashed" : "2px solid transparent",
           borderColor: dragging ? brandColor : "transparent",
           borderRadius: "8px",
@@ -292,7 +291,7 @@ export default function KbPage() {
 
         {/* Document list */}
         {!loading && docs.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {docs.map((doc) => (
               <div
                 key={doc.id}
@@ -300,8 +299,17 @@ export default function KbPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                  padding: "14px 0",
-                  borderBottom: "1px solid #f0f0f0",
+                  padding: "14px 16px",
+                  background: "#ffffff",
+                  border: "1px solid #eee",
+                  borderRadius: "12px",
+                  transition: "border-color 120ms",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#ddd";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#eee";
                 }}
               >
                 {fileIcon(doc.file_name)}

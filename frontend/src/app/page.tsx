@@ -37,16 +37,11 @@ export default async function HomePage() {
         flex: 1,
         display: "flex",
         flexDirection: "column",
+        background: "#FAFAFA",
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          padding: "14px 20px",
-          textAlign: "center",
-          borderBottom: "1px solid #f5f5f5",
-        }}
-      >
+      <div style={{ padding: "14px 20px", textAlign: "center" }}>
         <span
           style={{
             fontSize: "13px",
