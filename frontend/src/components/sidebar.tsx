@@ -232,10 +232,94 @@ export function IconBar() {
 
 /* ── SessionsPanel (252px card branco) ── */
 
+import { useCallback, useEffect } from "react";
+import { type ChatThread, listThreads } from "@/lib/api-client";
+
+function groupByDate(
+  threads: ChatThread[],
+): { label: string; threads: ChatThread[] }[] {
+  const groups: Record<string, ChatThread[]> = {};
+  const order: string[] = [];
+  const now = new Date();
+  const today = now.toDateString();
+  const yesterday = new Date(now.getTime() - 86400000).toDateString();
+
+  for (const t of threads) {
+    const d = new Date(t.updated_at || t.created_at || "");
+    let label: string;
+    if (d.toDateString() === today) label = "Hoje";
+    else if (d.toDateString() === yesterday) label = "Ontem";
+    else
+      label = d.toLocaleDateString("pt-BR", {
+        day: "numeric",
+        month: "short",
+      });
+
+    if (!groups[label]) {
+      groups[label] = [];
+      order.push(label);
+    }
+    groups[label].push(t);
+  }
+
+  return order.map((label) => ({ label, threads: groups[label] }));
+}
+
 export function SessionsPanel() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"recentes" | "favoritas">(
-    "recentes"
+    "recentes",
   );
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+
+  const fetchThreads = useCallback(async () => {
+    try {
+      const data = await listThreads();
+      setThreads(data);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  // Fetch threads on mount and when navigating to /chat
+  useEffect(() => {
+    fetchThreads();
+  }, [fetchThreads, pathname]);
+
+  // Listen for thread updates (after sending a message)
+  useEffect(() => {
+    function handleUpdate() {
+      fetchThreads();
+    }
+    window.addEventListener("threads-updated", handleUpdate);
+    return () => window.removeEventListener("threads-updated", handleUpdate);
+  }, [fetchThreads]);
+
+  function selectThread(id: string) {
+    setActiveThreadId(id);
+    if (pathname !== "/chat") {
+      router.push(`/chat?thread=${id}`);
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("select-thread", { detail: { threadId: id } }),
+      );
+    }
+  }
+
+  function newSession() {
+    setActiveThreadId(null);
+    if (pathname !== "/chat") {
+      router.push("/chat");
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("select-thread", { detail: { threadId: null } }),
+      );
+    }
+  }
+
+  const grouped = groupByDate(threads);
 
   return (
     <aside
@@ -292,9 +376,7 @@ export function SessionsPanel() {
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "#fff";
           }}
-          onClick={() => {
-            console.log("TODO: nova sessão — Fatia 4.3");
-          }}
+          onClick={newSession}
         >
           <span style={{ fontSize: "16px", lineHeight: 1 }}>+</span>
           Nova sessão
@@ -322,7 +404,9 @@ export function SessionsPanel() {
               background: "none",
               border: "none",
               borderBottom:
-                activeTab === tab ? "2px solid #555" : "2px solid transparent",
+                activeTab === tab
+                  ? "2px solid #555"
+                  : "2px solid transparent",
               padding: "8px 0",
               cursor: "pointer",
               textTransform: "capitalize",
@@ -342,28 +426,84 @@ export function SessionsPanel() {
           padding: "16px",
         }}
       >
-        {/* Date group label */}
-        <p
-          style={{
-            fontSize: "10.5px",
-            textTransform: "uppercase",
-            color: "#ccc",
-            letterSpacing: "0.05em",
-            fontWeight: 500,
-            marginBottom: "8px",
-          }}
-        >
-          Hoje
-        </p>
-        <p
-          style={{
-            fontSize: "13px",
-            color: "#bbb",
-            lineHeight: 1.5,
-          }}
-        >
-          Suas conversas com {studioConfig.agentName} aparecerão aqui.
-        </p>
+        {activeTab === "recentes" && threads.length === 0 && (
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#bbb",
+              lineHeight: 1.5,
+            }}
+          >
+            Suas conversas com {studioConfig.agentName} aparecerão aqui.
+          </p>
+        )}
+
+        {activeTab === "recentes" &&
+          grouped.map((group) => (
+            <div key={group.label} style={{ marginBottom: "12px" }}>
+              <p
+                style={{
+                  fontSize: "10.5px",
+                  textTransform: "uppercase",
+                  color: "#ccc",
+                  letterSpacing: "0.05em",
+                  fontWeight: 500,
+                  marginBottom: "6px",
+                }}
+              >
+                {group.label}
+              </p>
+              {group.threads.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => selectThread(t.id)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background:
+                      activeThreadId === t.id
+                        ? "rgba(0,0,0,0.05)"
+                        : "transparent",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "#444",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    transition: "background 150ms",
+                    marginBottom: "2px",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeThreadId !== t.id)
+                      e.currentTarget.style.background = "rgba(0,0,0,0.03)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeThreadId !== t.id)
+                      e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {t.title || "Sem título"}
+                </button>
+              ))}
+            </div>
+          ))}
+
+        {activeTab === "favoritas" && (
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#bbb",
+              lineHeight: 1.5,
+            }}
+          >
+            Favoritas em breve.
+          </p>
+        )}
       </div>
     </aside>
   );
