@@ -811,7 +811,7 @@ wheels = [
 [[package]]
 name = "gyros-os"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },

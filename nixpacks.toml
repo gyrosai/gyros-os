@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ["python312", "gcc", "postgresql"]
+
+[phases.install]
+cmds = [
+  "python -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate && pip install --upgrade pip",
+  ". /opt/venv/bin/activate && pip install uv",
+  ". /opt/venv/bin/activate && uv pip install --python /opt/venv/bin/python -e ."
+]
+
+[start]
+cmd = "/opt/venv/bin/uvicorn gyros_os.server.main:app --host 0.0.0.0 --port $PORT"

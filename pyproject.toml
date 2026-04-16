@@ -1,3 +1,10 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gyros_os"]
+
 [project]
 name = "gyros-os"
 version = "0.1.0"
