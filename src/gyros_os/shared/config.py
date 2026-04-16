@@ -110,9 +110,14 @@ class Settings(BaseSettings):
     embedding_dims: int = 1536
     memory_search_limit: int = 5
 
+    # --- CORS ---
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+
     # --- Studio v0.1: branding por instância (Forma C) ---
     studio_name: str = "Gyros Studio"
     agent_name: str = "Lyra"
+    # Nome do arquivo em prompts/ (sem extensão .md)
+    agent_prompt_file: str = "studio_assistant_default"
     features_enabled: str = "kb,chat,internal"
     # Lido primariamente pelo frontend via NEXT_PUBLIC_STUDIO_BRAND; declarado
     # aqui pra evitar descarte silencioso caso venha em .env compartilhado.
