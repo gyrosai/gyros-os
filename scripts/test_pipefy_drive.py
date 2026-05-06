@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import sys
 
+from gyros_os.integrations.google_drive.helpers import drive_kwargs
 from gyros_os.integrations.pipefy import PipefyClient
 from gyros_os.oauth.providers.google import get_google_drive_client
 from gyros_os.shared.config import settings
@@ -66,14 +67,17 @@ async def check_drive() -> None:
     parent = settings.drive_parent_folder_instrutores
     response = drive.files().list(
         q=f"'{parent}' in parents and trashed = false",
-        pageSize=5,
+        pageSize=100,
         fields="files(id, name, mimeType)",
+        **drive_kwargs(),
     ).execute()
 
     files = response.get("files", [])
     print(f"  Arquivos na pasta {parent}: {len(files)}")
-    for f in files:
+    for f in files[:5]:
         print(f"   - {f.get('name')} ({f.get('mimeType')})")
+    if len(files) > 5:
+        print(f"   ... ({len(files) - 5} mais)")
 
     print("✓ Drive client OK")
 

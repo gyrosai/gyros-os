@@ -92,20 +92,14 @@ severidade.
 
 ---
 
-### 🆕 `test_pipefy_drive.py` lista vazio em Shared Drive
+### ✅ `test_pipefy_drive.py` lista vazio em Shared Drive — RESOLVIDO na Fatia 5.2 Checkpoint 1
 **Descoberto em:** Fatia 5.1 (smoke test final).
 
-**Sintoma:** O smoke test imprime `Arquivos na pasta 1Fj_PmBVM8nSXk0Z5DcCt0jRNxobQzPJh: 0` apesar da pasta ter 20+ subpastas confirmadas (criadas hoje cedo no script `cimi-automation`). A chamada `service.files().list(q=...).execute()` no script não passa `includeItemsFromAllDrives=True` nem `supportsAllDrives=True`, então Google Drive API retorna lista vazia pra qualquer pasta dentro de um Shared Drive.
+**Sintoma:** O smoke test imprime `Arquivos na pasta 1Fj_PmBVM8nSXk0Z5DcCt0jRNxobQzPJh: 0` apesar da pasta ter 20+ subpastas. Faltava `includeItemsFromAllDrives=True` / `supportsAllDrives=True` nas chamadas Drive API.
 
-**Workaround aplicado:** Smoke test passou como `✓ Drive client OK` baseado em "não deu erro de auth/conexão", ignorando que a listagem retornou vazio. A validação real está OK porque o ponto era confirmar que `get_google_drive_client(user_id)` funciona — e funciona.
+**Resolução:** Criado helper `gyros_os.integrations.google_drive.helpers.drive_kwargs()` que retorna os 2 kwargs obrigatórios. `scripts/test_pipefy_drive.py` agora usa o helper e lista 27 arquivos na pasta-mãe. A próxima fatia (5.2 drive_sync) vai aplicar o mesmo helper em todas as chamadas Drive.
 
-**Fix futuro:** Adicionar `includeItemsFromAllDrives=True` e `supportsAllDrives=True` em todas as chamadas de Drive API. Não é só o smoke test — `drive_sync.py` (Fatia 5.2) vai PRECISAR desses parâmetros pra criar pasta, fazer upload, listar. Considerar criar wrapper `_drive_kwargs()` que retorne `{"supportsAllDrives": True, "includeItemsFromAllDrives": True}` pra evitar repetir manualmente em cada chamada.
-
-**Quando atacar:** Bloqueante pra Fatia 5.2. Resolver junto.
-
-**Severidade:** alta (bloqueia próxima fatia se não resolver).
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Resolvido na:** Fatia 5.2 Checkpoint 1.
 
 ---
 
@@ -165,29 +159,12 @@ severidade.
 
 **Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não são refletidas após `make down && make up`. Container sobe com imagem antiga em cache. Sintoma típico: rota nova retorna 404, função nova lança `AttributeError`, ou comportamento antigo persiste apesar do código novo. Resolve apenas com `docker compose up -d --build` manual.
 
-**Workaround aplicado:** Documentar mentalmente que mudanças backend exigem `--build` explícito. Hoje na Fatia 5.1 perdi ~10min debuggando "rota não existe" antes de descobrir que era cache.
+**Workaround aplicado:** Documentar mentalmente que mudanças backend exigem `--build` explícito. Hoje na Fatia 5.1 perdi ~10min debuggando "rota não existe" antes de descobrir que era cache. Na 5.2 ficou política consciente: usar `docker compose up -d --build` explícito durante a fatia.
 
 **Fix futuro:** Três opções: (a) adicionar volume bind mount em `docker-compose.yml` que mapeia `./src` pra dentro do container (hot reload, mas precisa garantir que `--reload` do uvicorn está ligado em dev), (b) criar `make up-build` no Makefile que sempre força build, (c) documentar em `docs/GETTING_STARTED.md` que mudanças backend exigem `--build`.
 
-**Quando atacar:** Próxima fatia que mexer em código backend (Fatia 5.2 já vai precisar). Resolver com (a) é o ideal — DX muito melhor pra todas as próximas fatias.
+**Quando atacar:** Junto com Railway deploy na Fatia 5.3.
 
 **Severidade:** média (custa tempo recorrente de debug em cada fatia que mexa em backend).
-
-**Adicionado na:** Fatia 5.1.
-
----
-
-### 🆕 `test_pipefy_drive.py` lista vazio em Shared Drive
-**Descoberto em:** Fatia 5.1 (smoke test final).
-
-**Sintoma:** O smoke test imprime `Arquivos na pasta 1Fj_PmBVM8nSXk0Z5DcCt0jRNxobQzPJh: 0` apesar da pasta ter 20+ subpastas confirmadas (criadas hoje cedo no script `cimi-automation`). A chamada `service.files().list(q=...).execute()` no script não passa `includeItemsFromAllDrives=True` nem `supportsAllDrives=True`, então Google Drive API retorna lista vazia pra qualquer pasta dentro de um Shared Drive.
-
-**Workaround aplicado:** Smoke test passou como `✓ Drive client OK` baseado em "não deu erro de auth/conexão", ignorando que a listagem retornou vazio. A validação real está OK porque o ponto era confirmar que `get_google_drive_client(user_id)` funciona — e funciona.
-
-**Fix futuro:** Adicionar `includeItemsFromAllDrives=True` e `supportsAllDrives=True` em todas as chamadas de Drive API. Não é só o smoke test — `drive_sync.py` (Fatia 5.2) vai PRECISAR desses parâmetros pra criar pasta, fazer upload, listar. Considerar criar wrapper `_drive_kwargs()` que retorne `{"supportsAllDrives": True, "includeItemsFromAllDrives": True}` pra evitar repetir manualmente em cada chamada.
-
-**Quando atacar:** Bloqueante pra Fatia 5.2. Resolver junto.
-
-**Severidade:** alta (bloqueia próxima fatia se não resolver).
 
 **Adicionado na:** Fatia 5.1.
