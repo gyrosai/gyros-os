@@ -21,3 +21,173 @@ severidade.
 **Severidade:** média. Não bloqueia nada hoje, mas vai piorar com cada executor novo que entrar no workaround.
 
 **Adicionado na:** Fatia 3.3 Checkpoint 2.
+
+---
+
+### 🆕 `[FERNET_DEBUG]` prints expostos em logs de produção
+**Descoberto em:** Fatia 5.1 (smoke test `test_pipefy_drive.py`).
+
+**Sintoma:** Toda chamada que decripte tokens emite `print()` com `[FERNET_DEBUG] raw length: 44`, `[FERNET_DEBUG] first 10: '9l2jg1OMRb'`, `[FERNET_DEBUG] last 5: 'pZpI='`, `[FERNET_DEBUG] has whitespace: False`, `[FERNET_DEBUG] has newline: False`, `[FERNET_DEBUG] Fernet initialized OK`. Aparece em `oauth/crypto.py`. Provavelmente sobreviveu de uma sessão de debug e nunca foi removido.
+
+**Workaround aplicado:** Nenhum. Logs ficam poluídos mas funcionam. Em prod, esses prints vão pra stdout do Railway sem filtro.
+
+**Fix futuro:** Remover os `print()` ou trocar por `logger.debug()` em `oauth/crypto.py`. Confirmar antes que nenhum teste/CI depende desse output. Pequeno risco residual: prefixos parciais (10 chars start + 5 end) da chave Fernet vazam pra logs persistentes.
+
+**Quando atacar:** Antes de qualquer deploy de produção que use OAuth (qualquer fatia que adicione Google Drive ou Calendar em prod). Bloqueia compliance básica.
+
+**Severidade:** baixa-média (poluição de log + leak parcial mínimo de chave; não é exploitável diretamente mas ofende princípio de "logs nunca contém secrets").
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `provider_user_id` ficando NULL silenciosamente após autorização OAuth
+**Descoberto em:** Fatia 5.1 (validação manual da autorização Google em `+5521981354432`).
+
+**Sintoma:** Após fluxo OAuth completo bem-sucedido (token salvo, refresh funcionando, scopes OK), o registro em `oauth_credentials` fica com `provider_user_id = NULL` em vez do email da conta Google que autorizou (esperado: `camila.martins@cimi360.com.br`). O `google.py:exchange_code_for_tokens` chama `_fetch_userinfo(access_token)` e o docstring documenta explicitamente "Se userinfo falhar, seguimos com `email=None`, porque ele é auditoria e não chave."
+
+**Workaround aplicado:** Nenhum — o sistema funciona sem `provider_user_id`. Mas perde rastreabilidade de qual conta Google autorizou um determinado `user_id` E.164. Em multi-tenant com clientes futuros, isso vira problema operacional ("quem do CIMI autorizou Calendar?").
+
+**Fix futuro:** Três opções, em ordem de invasividade: (a) aumentar log level de `oauth_userinfo_failed` de `warning` pra `error` pra trackear quão frequente é, (b) adicionar retry com backoff antes de desistir, (c) tornar `provider_user_id` obrigatório com fail-fast no exchange — mais invasivo mas mais correto pra auditoria.
+
+**Quando atacar:** Antes de adicionar segundo cliente no Gyros OS (multi-tenant real). Hoje só tem CIMI, então 1 NULL é gerenciável; com 5 clientes, vira caos.
+
+**Severidade:** média (auditoria comprometida, mas funcionalidade core OK).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `scripts/create_user.py` (Python legado) usa bcrypt em vez de scrypt do Better Auth
+**Descoberto em:** Fatia 5.1 (criação dos users `camila.martins@cimi360.com.br` e `daniels.claudino@cimi360.com.br` no banco local).
+
+**Sintoma:** Script `scripts/create_user.py` tem comentário literal `"""Hash compatível com Better Auth (bcrypt)."""` mas Better Auth não usa bcrypt — usa scrypt nativo via `hashPassword` de `better-auth/crypto`. Users criados pelo script Python conseguem ser inseridos no banco mas **não conseguem logar via Better Auth API** porque o hash não bate.
+
+**Workaround aplicado:** Criado `frontend/scripts/create-user.ts` (TypeScript) seguindo padrão de `bootstrap-admin-core.ts`, que usa `hashPassword` nativo. Os 2 users da CIMI foram criados via TS e logaram OK.
+
+**Fix futuro:** Decidir se mantém o `scripts/create_user.py` (apagar OU marcar `DEPRECATED` no docstring). Quem chegar no projeto pode usar o script errado e gastar 1h debuggando. Apagar é mais seguro; marcar como DEPRECATED preserva histórico.
+
+**Quando atacar:** Próxima limpeza de `scripts/`. Não bloqueia nada agora porque o TS funciona.
+
+**Severidade:** baixa (não quebra nada em uso; só confunde dev novo).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `make up` não detecta mudanças de código no backend
+**Descoberto em:** Fatia 5.1 (rota `/oauth/google/start` retornando 404 mesmo após adicionar `get_google_drive_client` e reiniciar com `make down && make up`).
+
+**Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não são refletidas após `make down && make up`. Container sobe com imagem antiga em cache. Sintoma típico: rota nova retorna 404, função nova lança `AttributeError`, ou comportamento antigo persiste apesar do código novo. Resolve apenas com `docker compose up -d --build` manual.
+
+**Workaround aplicado:** Documentar mentalmente que mudanças backend exigem `--build` explícito. Hoje na Fatia 5.1 perdi ~10min debuggando "rota não existe" antes de descobrir que era cache.
+
+**Fix futuro:** Três opções: (a) adicionar volume bind mount em `docker-compose.yml` que mapeia `./src` pra dentro do container (hot reload, mas precisa garantir que `--reload` do uvicorn está ligado em dev), (b) criar `make up-build` no Makefile que sempre força build, (c) documentar em `docs/GETTING_STARTED.md` que mudanças backend exigem `--build`.
+
+**Quando atacar:** Próxima fatia que mexer em código backend (Fatia 5.2 já vai precisar). Resolver com (a) é o ideal — DX muito melhor pra todas as próximas fatias.
+
+**Severidade:** média (custa tempo recorrente de debug em cada fatia que mexa em backend).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `test_pipefy_drive.py` lista vazio em Shared Drive
+**Descoberto em:** Fatia 5.1 (smoke test final).
+
+**Sintoma:** O smoke test imprime `Arquivos na pasta 1Fj_PmBVM8nSXk0Z5DcCt0jRNxobQzPJh: 0` apesar da pasta ter 20+ subpastas confirmadas (criadas hoje cedo no script `cimi-automation`). A chamada `service.files().list(q=...).execute()` no script não passa `includeItemsFromAllDrives=True` nem `supportsAllDrives=True`, então Google Drive API retorna lista vazia pra qualquer pasta dentro de um Shared Drive.
+
+**Workaround aplicado:** Smoke test passou como `✓ Drive client OK` baseado em "não deu erro de auth/conexão", ignorando que a listagem retornou vazio. A validação real está OK porque o ponto era confirmar que `get_google_drive_client(user_id)` funciona — e funciona.
+
+**Fix futuro:** Adicionar `includeItemsFromAllDrives=True` e `supportsAllDrives=True` em todas as chamadas de Drive API. Não é só o smoke test — `drive_sync.py` (Fatia 5.2) vai PRECISAR desses parâmetros pra criar pasta, fazer upload, listar. Considerar criar wrapper `_drive_kwargs()` que retorne `{"supportsAllDrives": True, "includeItemsFromAllDrives": True}` pra evitar repetir manualmente em cada chamada.
+
+**Quando atacar:** Bloqueante pra Fatia 5.2. Resolver junto.
+
+**Severidade:** alta (bloqueia próxima fatia se não resolver).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `[FERNET_DEBUG]` prints expostos em logs de produção
+**Descoberto em:** Fatia 5.1 (smoke test `test_pipefy_drive.py`).
+
+**Sintoma:** Toda chamada que decripte tokens emite `print()` com `[FERNET_DEBUG] raw length: 44`, `[FERNET_DEBUG] first 10: '9l2jg1OMRb'`, `[FERNET_DEBUG] last 5: 'pZpI='`, `[FERNET_DEBUG] has whitespace: False`, `[FERNET_DEBUG] has newline: False`, `[FERNET_DEBUG] Fernet initialized OK`. Aparece em `oauth/crypto.py`. Provavelmente sobreviveu de uma sessão de debug e nunca foi removido.
+
+**Workaround aplicado:** Nenhum. Logs ficam poluídos mas funcionam. Em prod, esses prints vão pra stdout do Railway sem filtro.
+
+**Fix futuro:** Remover os `print()` ou trocar por `logger.debug()` em `oauth/crypto.py`. Confirmar antes que nenhum teste/CI depende desse output. Pequeno risco residual: prefixos parciais (10 chars start + 5 end) da chave Fernet vazam pra logs persistentes.
+
+**Quando atacar:** Antes de qualquer deploy de produção que use OAuth (qualquer fatia que adicione Google Drive ou Calendar em prod). Bloqueia compliance básica.
+
+**Severidade:** baixa-média (poluição de log + leak parcial mínimo de chave; não é exploitável diretamente mas ofende princípio de "logs nunca contém secrets").
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `provider_user_id` ficando NULL silenciosamente após autorização OAuth
+**Descoberto em:** Fatia 5.1 (validação manual da autorização Google em `+5521981354432`).
+
+**Sintoma:** Após fluxo OAuth completo bem-sucedido (token salvo, refresh funcionando, scopes OK), o registro em `oauth_credentials` fica com `provider_user_id = NULL` em vez do email da conta Google que autorizou (esperado: `camila.martins@cimi360.com.br`). O `google.py:exchange_code_for_tokens` chama `_fetch_userinfo(access_token)` e o docstring documenta explicitamente "Se userinfo falhar, seguimos com `email=None`, porque ele é auditoria e não chave."
+
+**Workaround aplicado:** Nenhum — o sistema funciona sem `provider_user_id`. Mas perde rastreabilidade de qual conta Google autorizou um determinado `user_id` E.164. Em multi-tenant com clientes futuros, isso vira problema operacional ("quem do CIMI autorizou Calendar?").
+
+**Fix futuro:** Três opções, em ordem de invasividade: (a) aumentar log level de `oauth_userinfo_failed` de `warning` pra `error` pra trackear quão frequente é, (b) adicionar retry com backoff antes de desistir, (c) tornar `provider_user_id` obrigatório com fail-fast no exchange — mais invasivo mas mais correto pra auditoria.
+
+**Quando atacar:** Antes de adicionar segundo cliente no Gyros OS (multi-tenant real). Hoje só tem CIMI, então 1 NULL é gerenciável; com 5 clientes, vira caos.
+
+**Severidade:** média (auditoria comprometida, mas funcionalidade core OK).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `scripts/create_user.py` (Python legado) usa bcrypt em vez de scrypt do Better Auth
+**Descoberto em:** Fatia 5.1 (criação dos users `camila.martins@cimi360.com.br` e `daniels.claudino@cimi360.com.br` no banco local).
+
+**Sintoma:** Script `scripts/create_user.py` tem comentário literal `"""Hash compatível com Better Auth (bcrypt)."""` mas Better Auth não usa bcrypt — usa scrypt nativo via `hashPassword` de `better-auth/crypto`. Users criados pelo script Python conseguem ser inseridos no banco mas **não conseguem logar via Better Auth API** porque o hash não bate.
+
+**Workaround aplicado:** Criado `frontend/scripts/create-user.ts` (TypeScript) seguindo padrão de `bootstrap-admin-core.ts`, que usa `hashPassword` nativo. Os 2 users da CIMI foram criados via TS e logaram OK.
+
+**Fix futuro:** Decidir se mantém o `scripts/create_user.py` (apagar OU marcar `DEPRECATED` no docstring). Quem chegar no projeto pode usar o script errado e gastar 1h debuggando. Apagar é mais seguro; marcar como DEPRECATED preserva histórico.
+
+**Quando atacar:** Próxima limpeza de `scripts/`. Não bloqueia nada agora porque o TS funciona.
+
+**Severidade:** baixa (não quebra nada em uso; só confunde dev novo).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `make up` não detecta mudanças de código no backend
+**Descoberto em:** Fatia 5.1 (rota `/oauth/google/start` retornando 404 mesmo após adicionar `get_google_drive_client` e reiniciar com `make down && make up`).
+
+**Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não são refletidas após `make down && make up`. Container sobe com imagem antiga em cache. Sintoma típico: rota nova retorna 404, função nova lança `AttributeError`, ou comportamento antigo persiste apesar do código novo. Resolve apenas com `docker compose up -d --build` manual.
+
+**Workaround aplicado:** Documentar mentalmente que mudanças backend exigem `--build` explícito. Hoje na Fatia 5.1 perdi ~10min debuggando "rota não existe" antes de descobrir que era cache.
+
+**Fix futuro:** Três opções: (a) adicionar volume bind mount em `docker-compose.yml` que mapeia `./src` pra dentro do container (hot reload, mas precisa garantir que `--reload` do uvicorn está ligado em dev), (b) criar `make up-build` no Makefile que sempre força build, (c) documentar em `docs/GETTING_STARTED.md` que mudanças backend exigem `--build`.
+
+**Quando atacar:** Próxima fatia que mexer em código backend (Fatia 5.2 já vai precisar). Resolver com (a) é o ideal — DX muito melhor pra todas as próximas fatias.
+
+**Severidade:** média (custa tempo recorrente de debug em cada fatia que mexa em backend).
+
+**Adicionado na:** Fatia 5.1.
+
+---
+
+### 🆕 `test_pipefy_drive.py` lista vazio em Shared Drive
+**Descoberto em:** Fatia 5.1 (smoke test final).
+
+**Sintoma:** O smoke test imprime `Arquivos na pasta 1Fj_PmBVM8nSXk0Z5DcCt0jRNxobQzPJh: 0` apesar da pasta ter 20+ subpastas confirmadas (criadas hoje cedo no script `cimi-automation`). A chamada `service.files().list(q=...).execute()` no script não passa `includeItemsFromAllDrives=True` nem `supportsAllDrives=True`, então Google Drive API retorna lista vazia pra qualquer pasta dentro de um Shared Drive.
+
+**Workaround aplicado:** Smoke test passou como `✓ Drive client OK` baseado em "não deu erro de auth/conexão", ignorando que a listagem retornou vazio. A validação real está OK porque o ponto era confirmar que `get_google_drive_client(user_id)` funciona — e funciona.
+
+**Fix futuro:** Adicionar `includeItemsFromAllDrives=True` e `supportsAllDrives=True` em todas as chamadas de Drive API. Não é só o smoke test — `drive_sync.py` (Fatia 5.2) vai PRECISAR desses parâmetros pra criar pasta, fazer upload, listar. Considerar criar wrapper `_drive_kwargs()` que retorne `{"supportsAllDrives": True, "includeItemsFromAllDrives": True}` pra evitar repetir manualmente em cada chamada.
+
+**Quando atacar:** Bloqueante pra Fatia 5.2. Resolver junto.
+
+**Severidade:** alta (bloqueia próxima fatia se não resolver).
+
+**Adicionado na:** Fatia 5.1.

@@ -130,6 +130,14 @@ class Settings(BaseSettings):
     google_oauth_scopes: str = ""
     oauth_token_encryption_key: SecretStr | None = None
 
+    # --- Pipefy ---
+    pipefy_token: SecretStr | None = None
+    pipefy_pipe_curadoria_id: str = ""
+    pipefy_phase_formalizacao_id: str = ""
+
+    # --- Drive (CIMI Curadoria) ---
+    drive_parent_folder_instrutores: str = ""
+
     def get_features_enabled(self) -> set[str]:
         """Parse CSV de features ativas (lowercase, trim)."""
         return {
