@@ -62,3 +62,8 @@ patch/
 # Google OAuth client secret files — NUNCA commitar
 client_secret_*.json
 *_client_secret.json
+
+# Env files (any variant)
+.env
+.env.*
+!.env.example

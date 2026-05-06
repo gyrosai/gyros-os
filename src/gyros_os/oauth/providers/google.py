@@ -357,6 +357,34 @@ async def get_google_calendar_client(*, user_id: str) -> Resource:
     )
 
 
+async def get_google_drive_client(*, user_id: str) -> Resource:
+    """Helper público — cliente Drive autenticado.
+
+    Espelha `get_google_calendar_client` mas constrói cliente Drive.
+    Mesma garantia de refresh proativo: busca credencial, refresha se
+    perto de expirar, e devolve um Resource pronto pra uso. Requer
+    que o scope `drive` (ou `drive.readonly`/`drive.file`) esteja
+    incluído em `GOOGLE_OAUTH_SCOPES` no momento da autorização.
+    """
+    creds = await service.get_credentials(user_id=user_id, provider="google")
+    if creds is None:
+        raise GoogleCredentialsNotFound(user_id)
+
+    creds = await service.refresh_if_needed(
+        creds,
+        refresh_fn=refresh_access_token,
+    )
+
+    google_creds = _build_google_credentials(creds)
+
+    return build(
+        "drive",
+        "v3",
+        credentials=google_creds,
+        cache_discovery=False,
+    )
+
+
 def _build_google_credentials(creds: OAuthCredentials) -> Credentials:
     """Converte nossa OAuthCredentials no Credentials do SDK do Google.
 
