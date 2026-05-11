@@ -6,6 +6,25 @@ severidade.
 
 ---
 
+### 🆕 `camila.martins@cimi360.com.br` sem permissão de delete/trash no Shared Drive `0AMWOAOVQ2sFvUk9PVA`
+**Descoberto em:** Fatia 5.2 Checkpoint 2.
+
+**Sintoma:** A conta da Camila consegue **criar** e **atualizar** arquivos no Shared Drive da CIMI Curadoria via OAuth API, mas não consegue **deletar** nem **trashear** arquivos individuais. As capabilities reais retornadas pelo Drive API pra `foto_*.jpg` que ela mesma criou via standalone: `canDelete=False, canTrash=False, canEdit=True, canModifyContent=True`. Tentar `files().delete(fileId=...)` retorna 404 (Drive API mascara "no permission" como 404 em delete); `files().update(body={"trashed": True})` retorna 403 com `"The user does not have sufficient permissions for this file"`.
+
+O standalone `~/Documents/cimi-automation/pipefy_to_drive.py` exibia esse 404 como warning em todas as execuções ("ruído em 100% dos cards") e o efeito real ficou camuflado: as fotos antigas nunca eram apagadas, e cada execução criava uma nova foto. A pasta da Ana Tedoldi acumulou 4 cópias de `foto_ana_carolina_tedoldi_pinto.jpg` antes do problema ser visto na Fatia 5.2 Checkpoint 2.
+
+**Workaround aplicado (Fatia 5.2 Checkpoint 2):** `drive_sync._upload_photo` foi escrito de forma a **nunca chamar delete**. Em vez disso: lista por prefixo `foto_<slug>` na pasta, e se existir arquivo, faz `update(media_body=)` no primeiro encontrado (com rename via `body={"name":...}` se a extensão mudou). Se não existir, faz `create`. Idempotente sem precisar da permissão ausente. As fotos órfãs já acumuladas continuam na pasta e precisam ser apagadas manualmente via UI do Drive (a Camila vai fazer isso antes do Checkpoint 3).
+
+**Fix futuro:** elevar a role da `camila.martins@cimi360.com.br` no Shared Drive `0AMWOAOVQ2sFvUk9PVA` de "Contributor" pra "Editor" (ou "Content manager"). Isso é uma operação de admin do Workspace da CIMI — não é mudança de código. Após resolvido: opcionalmente escrever script one-off que percorra as pastas e apague arquivos `foto_*` órfãos (qualquer um além do mais recente).
+
+**Quando atacar:** próxima sessão de admin Workspace na CIMI. Não bloqueia mais o Gyros OS depois do workaround do Checkpoint 2; só deixa lixo lentamente acumulado nas pastas até alguém apagar manualmente.
+
+**Severidade:** baixa (não bloqueia funcionalidade após o workaround; só deixa orphan files no Drive).
+
+**Adicionado na:** Fatia 5.2 Checkpoint 2.
+
+---
+
 ### 🆕 Contrato do ExecutorFn recebe apenas `payload`, não `Approval` inteiro
 
 **Descoberto em:** Fatia 3.3 Checkpoint 2 (executor `gcal_create_event`).
