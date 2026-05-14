@@ -6,37 +6,65 @@ severidade.
 
 ---
 
-### 🆕 `Acesso negado` do Pipefy é retentado desnecessariamente
+### 🆕 `event_worker` engole `KeyError` do handler como "unknown event type"
+**Descoberto em:** Fatia 5.3 Parte A (tentando reproduzir o suposto bug de `event_queue.error` NULL).
+
+**Sintoma:** Em `worker/event_worker.py`, o dispatcher faz `handler = HANDLERS[event.event_type]` dentro do mesmo `try:` que executa `await handler(event)`. O `except KeyError:` foi pensado pra capturar event_types não registrados — mas captura também `KeyError`s levantados de DENTRO do handler. Concretamente: um evento `pipefy.card_moved_to_phase` com payload faltando `card_id` levanta `KeyError("card_id")` em `event.payload["card_id"]`. O worker classifica isso como "unknown event type" e marca o evento como `failed` com `retry=False` — mensagem de erro misleading e payload inválido nunca retentado mesmo quando o problema é transiente do enqueue (ex: webhook que perdeu um campo).
+
+**Workaround aplicado:** Nenhum hoje — payloads bem-formados (Fatia 5.2 e 5.3 Parte A) não acionam o caso. Mas qualquer mudança futura no contrato de payload pode entrar nessa armadilha silenciosamente.
+
+**Fix futuro:** Em `event_worker.py`, separar a lookup do dispatch: `handler = HANDLERS.get(event.event_type)` antes do `try`, e usar `if handler is None:` pra o caminho "unknown event type". O `try` ao redor do `await handler(event)` então só captura erros de execução. Esse design já é o padrão típico de dispatchers; o atual é um descuido.
+
+**Quando atacar:** Antes do webhook Pipefy real entrar em prod (Fatia 5.3 Parte B). Webhook real pode mandar payloads incompletos por bug do remetente, e a operação precisa ver `event_handler_failed` no log, não `unknown event type`.
+
+**Severidade:** média (debug fica confuso; eventos com payload quebrado não retentam quando deveriam).
+
+**Adicionado na:** Fatia 5.3 Parte A.
+
+---
+
+### 🆕 Duplicatas no próprio `99-tech-debt.md`
+**Descoberto em:** Fatia 5.3 Parte A (marcando os 5 débitos como resolvidos).
+
+**Sintoma:** Três débitos aparecem **duas vezes** no arquivo, com conteúdo quase idêntico:
+- `[FERNET_DEBUG]` prints (linhas ~68 e ~131)
+- `provider_user_id` NULL silencioso (linhas ~79 e ~142)
+- `scripts/create_user.py` bcrypt (linhas ~92 e ~155)
+- `make up` no rebuild (linhas ~109 e ~172)
+
+Provavelmente uma colagem acidental em alguma revisão da Fatia 5.1. Não afetou nada operacionalmente — só dobra a leitura.
+
+**Workaround aplicado:** Marquei TODAS as duplicatas como resolvidas na Fatia 5.3 Parte A (3 itens × 2 cópias = 6 entradas tocadas). O `create_user.py` continua aberto nas duas cópias porque está fora do escopo desta fatia.
+
+**Fix futuro:** Próxima edição manual do `99-tech-debt.md`, deletar as duplicatas (manter só a primeira ocorrência de cada). Tarefa de 5 minutos, mas requer ler com atenção pra não derrubar histórico legítimo.
+
+**Quando atacar:** Próxima limpeza do arquivo (qualquer fatia).
+
+**Severidade:** baixa (não afeta código; só ruído de leitura).
+
+**Adicionado na:** Fatia 5.3 Parte A.
+
+---
+
+### ✅ `Acesso negado` do Pipefy é retentado desnecessariamente — RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.2 Checkpoint 3 (validação fim-a-fim).
 
 **Sintoma:** Quando `PipefyClient.get_card(card_id)` retorna `"Acesso negado"` (card foi movido pra outro pipe, arquivado, ou perdeu permissão), o handler propaga como exceção genérica e o `event_worker` retenta 5x com backoff (5+10+15+20s = ~50s totais) antes de marcar `failed`. Em produção, descobrimos isso quando o card 1327680921 (Cristina Gravina) ficou inacessível entre uma execução e outra — provavelmente movido pela equipe da CIMI no Pipefy.
 
-**Workaround aplicado:** Nenhum — o comportamento de retry funciona, só é desperdício de quota Pipefy + atraso na propagação de eventos posteriores na fila.
+**Resolução:** `PipefyClient._post` detecta `extensions.code=="PERMISSION_DENIED"` (com fallback pra `message=="Acesso negado"` caso a API deixe de mandar extensions) e levanta `PipefyAccessDenied` (subclasse de `PipefyError`, com `card_id` no atributo). O handler `pipefy.card_moved_to_phase` captura antes do `except` genérico e retorna `{"action":"skipped","reason":"card_access_denied","card_id":...}`. Validado fim-a-fim com o mesmo card 1327680921: `event_queue` foi de `status=failed/attempts=5` (antes) pra `status=done/attempts=1` (depois).
 
-**Fix futuro:** Em `gyros_os/integrations/pipefy/client.py`, identificar a resposta GraphQL `Acesso negado` e levantar exceção dedicada `PipefyAccessDenied` (paralela a `PipefyNotFound`). No handler de `pipefy.card_moved_to_phase`, capturar essa exceção e retornar `{"action": "skipped", "reason": "card_access_denied", "card_id": ...}` (mesmo padrão do branch `phase_not_handled`). Sem retry.
-
-**Quando atacar:** Fatia 5.3, junto com webhook real — quando o volume de eventos aumentar, retry desperdiçado vira gargalo perceptível. Pode atacar antes se Claudino mover cards com frequência.
-
-**Severidade:** média (desperdício de API quota + atraso na fila, mas não bloqueia funcionalidade core).
-
-**Adicionado na:** Fatia 5.2 Checkpoint 3.
+**Adicionado na:** Fatia 5.2 Checkpoint 3. **Resolvido na:** Fatia 5.3 Parte A.
 
 ---
 
-### 🆕 `event_queue.error` fica NULL após failure mesmo com error message disponível
+### ✅ `event_queue.error` fica NULL após failure — VERIFICADO RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.2 Checkpoint 3 (evento 11 falhou 5x com `Acesso negado`).
 
-**Sintoma:** Quando um evento falha definitivamente (esgotou retries), os logs do `event_worker` mostram a string de erro (`error="Acesso negado"`), mas a coluna `event_queue.error` na linha correspondente fica `NULL`. Verificado em `SELECT id, status, result, error FROM event_queue WHERE id = 11;` — coluna `error` veio vazia.
+**Sintoma observado:** Quando um evento falhou definitivamente (esgotou retries), os logs do `event_worker` mostraram a string de erro mas a coluna `event_queue.error` aparecia `NULL` em pelo menos uma inspeção do evento 11.
 
-**Workaround aplicado:** Nenhum. Os logs do worker capturam o erro, mas só ficam disponíveis durante a janela de retenção do Docker/Railway. Auditoria histórica de eventos failed via banco fica comprometida.
+**Resolução (sem mudança de código):** Verificado durante a Fatia 5.3 Parte A que o código atual de `gyros_os/shared/event_queue.py:mark_event_failed` **já persiste `error` em ambos os paths** — retry (linhas ~228-237, `SET error=%s`) e terminal failure (linhas ~251-260, `SET error=%s`). Reproduzido o cenário de retry-exhaustion via `max_attempts=1` + handler `fireflies.transcription_completed` com `meeting_id` bogus: linha terminou com `status=failed, attempts=1, error="Transcript not found: ..."`. Re-inspecionado o próprio evento 11 hoje: `error="Acesso negado"` (não NULL). `git log` em `event_queue.py` mostra um único commit — não houve fix silencioso. Conclusão: a observação original foi de estado transiente (provavelmente entre claim e mark_event_failed, ou tabela lida durante reset de retry).
 
-**Fix futuro:** Em `gyros_os/shared/event_queue.py`, no `mark_event_failed` (ou equivalente), garantir que o argumento `error` seja efetivamente gravado na coluna `event_queue.error` via UPDATE. Provável bug: a função recebe o argumento mas não inclui na cláusula UPDATE, ou só usa quando há retry restante e não no terminal failure.
-
-**Quando atacar:** Fatia 5.3, antes do deploy de produção. Sem isso, operação real (Milena vê evento failed e quer entender por quê) só consegue diagnosticar via logs Railway — pior UX.
-
-**Severidade:** média (perde rastreabilidade no banco para eventos failed; logs eventualmente rotacionam).
-
-**Adicionado na:** Fatia 5.2 Checkpoint 3.
+**Adicionado na:** Fatia 5.2 Checkpoint 3. **Resolvido na:** Fatia 5.3 Parte A (verificação, sem mudança de código).
 
 ---
 
@@ -77,37 +105,27 @@ O standalone `~/Documents/cimi-automation/pipefy_to_drive.py` exibia esse 404 co
 
 ---
 
-### 🆕 `[FERNET_DEBUG]` prints expostos em logs de produção
+### ✅ `[FERNET_DEBUG]` prints expostos em logs de produção — RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.1 (smoke test `test_pipefy_drive.py`).
 
-**Sintoma:** Toda chamada que decripte tokens emite `print()` com `[FERNET_DEBUG] raw length: 44`, `[FERNET_DEBUG] first 10: '9l2jg1OMRb'`, `[FERNET_DEBUG] last 5: 'pZpI='`, `[FERNET_DEBUG] has whitespace: False`, `[FERNET_DEBUG] has newline: False`, `[FERNET_DEBUG] Fernet initialized OK`. Aparece em `oauth/crypto.py`. Provavelmente sobreviveu de uma sessão de debug e nunca foi removido.
+**Sintoma:** Toda chamada que decripte tokens emitia `print()` com `[FERNET_DEBUG] raw length: 44`, `[FERNET_DEBUG] first 10: '9l2jg1OMRb'`, `[FERNET_DEBUG] last 5: 'pZpI='`, `[FERNET_DEBUG] has whitespace: False`, `[FERNET_DEBUG] has newline: False`, `[FERNET_DEBUG] Fernet initialized OK`, indo pra stdout do Railway sem filtro. Prefixos parciais da chave Fernet vazavam pra logs persistentes.
 
-**Workaround aplicado:** Nenhum. Logs ficam poluídos mas funcionam. Em prod, esses prints vão pra stdout do Railway sem filtro.
+**Resolução:** `oauth/crypto.py` agora usa `structlog.get_logger().debug(...)` em vez de `print()`, com eventos estáveis (`fernet_key_loaded`, `fernet_key_validated`, `fernet_initialized`). Os prefixos parciais (`first 10` / `last 5`) foram **removidos completamente** — não aparecem nem em DEBUG, atendendo o princípio de "logs nunca contém secrets, nem partes deles". Falha de inicialização loga só o nome do tipo da exceção, não a mensagem (que pode incluir bytes da chave). `grep -r FERNET_DEBUG .` confirma zero ocorrências.
 
-**Fix futuro:** Remover os `print()` ou trocar por `logger.debug()` em `oauth/crypto.py`. Confirmar antes que nenhum teste/CI depende desse output. Pequeno risco residual: prefixos parciais (10 chars start + 5 end) da chave Fernet vazam pra logs persistentes.
-
-**Quando atacar:** Antes de qualquer deploy de produção que use OAuth (qualquer fatia que adicione Google Drive ou Calendar em prod). Bloqueia compliance básica.
-
-**Severidade:** baixa-média (poluição de log + leak parcial mínimo de chave; não é exploitável diretamente mas ofende princípio de "logs nunca contém secrets").
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Resolvido na:** Fatia 5.3 Parte A.
 
 ---
 
-### 🆕 `provider_user_id` ficando NULL silenciosamente após autorização OAuth
+### ✅ `provider_user_id` ficando NULL silenciosamente após autorização OAuth — PARCIALMENTE RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.1 (validação manual da autorização Google em `+5521981354432`).
 
 **Sintoma:** Após fluxo OAuth completo bem-sucedido (token salvo, refresh funcionando, scopes OK), o registro em `oauth_credentials` fica com `provider_user_id = NULL` em vez do email da conta Google que autorizou (esperado: `camila.martins@cimi360.com.br`). O `google.py:exchange_code_for_tokens` chama `_fetch_userinfo(access_token)` e o docstring documenta explicitamente "Se userinfo falhar, seguimos com `email=None`, porque ele é auditoria e não chave."
 
-**Workaround aplicado:** Nenhum — o sistema funciona sem `provider_user_id`. Mas perde rastreabilidade de qual conta Google autorizou um determinado `user_id` E.164. Em multi-tenant com clientes futuros, isso vira problema operacional ("quem do CIMI autorizou Calendar?").
+**Resolução parcial (opções (a)+(b) do plano original):** `_fetch_userinfo` agora (i) tenta até 3x com backoff 1s + 3s pra erros transientes (5xx, exceções `httpx.HTTPError`); (ii) curto-circuita em 401/403 (token rejeitado não melhora em segundos); (iii) loga falha final como `level=error` com campo `attempt` em vez de `warning` — pra `provider_user_id NULL` virar sinal acionável em prod. Timeout por tentativa caiu de 10s pra 5s pra manter o teto agregado da retry sequence (~19s) dentro do budget do callback OAuth do browser.
 
-**Fix futuro:** Três opções, em ordem de invasividade: (a) aumentar log level de `oauth_userinfo_failed` de `warning` pra `error` pra trackear quão frequente é, (b) adicionar retry com backoff antes de desistir, (c) tornar `provider_user_id` obrigatório com fail-fast no exchange — mais invasivo mas mais correto pra auditoria.
+**Pendente (opção (c) do plano original):** Tornar `provider_user_id` obrigatório com fail-fast no exchange. Mais invasivo e só faz sentido quando tivermos segundo cliente real (multi-tenant). Fica pra próxima fatia que mexer em OAuth depois de um cliente novo entrar.
 
-**Quando atacar:** Antes de adicionar segundo cliente no Gyros OS (multi-tenant real). Hoje só tem CIMI, então 1 NULL é gerenciável; com 5 clientes, vira caos.
-
-**Severidade:** média (auditoria comprometida, mas funcionalidade core OK).
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Parcialmente resolvido na:** Fatia 5.3 Parte A.
 
 ---
 
@@ -128,20 +146,14 @@ O standalone `~/Documents/cimi-automation/pipefy_to_drive.py` exibia esse 404 co
 
 ---
 
-### 🆕 `make up` não detecta mudanças de código no backend
+### ✅ `make up` não detecta mudanças de código no backend — RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.1 (rota `/oauth/google/start` retornando 404 mesmo após adicionar `get_google_drive_client` e reiniciar com `make down && make up`).
 
-**Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não são refletidas após `make down && make up`. Container sobe com imagem antiga em cache. Sintoma típico: rota nova retorna 404, função nova lança `AttributeError`, ou comportamento antigo persiste apesar do código novo. Resolve apenas com `docker compose up -d --build` manual.
+**Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não eram refletidas após `make down && make up`. Container subia com imagem antiga em cache. Sintoma típico: rota nova retornava 404, função nova lançava `AttributeError`, ou comportamento antigo persistia apesar do código novo. Resolvia apenas com `docker compose up -d --build` manual.
 
-**Workaround aplicado:** Documentar mentalmente que mudanças backend exigem `--build` explícito. Hoje na Fatia 5.1 perdi ~10min debuggando "rota não existe" antes de descobrir que era cache.
+**Resolução (opção (a) do plano original):** `docker-compose.yml` agora monta `./src:/app/src` em `api` e `worker`, e gateia o startup em `GYROS_DEV_MODE=true`: `api` roda `uvicorn ... --reload --reload-dir /app/src`, `worker` roda `python -m watchfiles "python -m gyros_os.worker.main" /app/src`. Foi necessário também adicionar `PYTHONPATH=/app/src` — sem isso, Python preferia a cópia estagnada de `site-packages/` (instalada pelo `uv pip install --system .` no Dockerfile) sobre o bind mount, fazendo `watchfiles` reiniciar o processo mas as importações continuarem velhas. Validado: editar `shared/config.py` dispara reload do api em ~2s e do worker em ~2s. Compose é dev-only (Railway/Nixpacks pra prod), Dockerfile.api/worker `CMD` intactos.
 
-**Fix futuro:** Três opções: (a) adicionar volume bind mount em `docker-compose.yml` que mapeia `./src` pra dentro do container (hot reload, mas precisa garantir que `--reload` do uvicorn está ligado em dev), (b) criar `make up-build` no Makefile que sempre força build, (c) documentar em `docs/GETTING_STARTED.md` que mudanças backend exigem `--build`.
-
-**Quando atacar:** Próxima fatia que mexer em código backend (Fatia 5.2 já vai precisar). Resolver com (a) é o ideal — DX muito melhor pra todas as próximas fatias.
-
-**Severidade:** média (custa tempo recorrente de debug em cada fatia que mexa em backend).
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Resolvido na:** Fatia 5.3 Parte A.
 
 ---
 
@@ -156,37 +168,27 @@ O standalone `~/Documents/cimi-automation/pipefy_to_drive.py` exibia esse 404 co
 
 ---
 
-### 🆕 `[FERNET_DEBUG]` prints expostos em logs de produção
+### ✅ `[FERNET_DEBUG]` prints expostos em logs de produção — RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.1 (smoke test `test_pipefy_drive.py`).
 
-**Sintoma:** Toda chamada que decripte tokens emite `print()` com `[FERNET_DEBUG] raw length: 44`, `[FERNET_DEBUG] first 10: '9l2jg1OMRb'`, `[FERNET_DEBUG] last 5: 'pZpI='`, `[FERNET_DEBUG] has whitespace: False`, `[FERNET_DEBUG] has newline: False`, `[FERNET_DEBUG] Fernet initialized OK`. Aparece em `oauth/crypto.py`. Provavelmente sobreviveu de uma sessão de debug e nunca foi removido.
+**Sintoma:** Toda chamada que decripte tokens emitia `print()` com `[FERNET_DEBUG] raw length: 44`, `[FERNET_DEBUG] first 10: '9l2jg1OMRb'`, `[FERNET_DEBUG] last 5: 'pZpI='`, `[FERNET_DEBUG] has whitespace: False`, `[FERNET_DEBUG] has newline: False`, `[FERNET_DEBUG] Fernet initialized OK`, indo pra stdout do Railway sem filtro. Prefixos parciais da chave Fernet vazavam pra logs persistentes.
 
-**Workaround aplicado:** Nenhum. Logs ficam poluídos mas funcionam. Em prod, esses prints vão pra stdout do Railway sem filtro.
+**Resolução:** `oauth/crypto.py` agora usa `structlog.get_logger().debug(...)` em vez de `print()`, com eventos estáveis (`fernet_key_loaded`, `fernet_key_validated`, `fernet_initialized`). Os prefixos parciais (`first 10` / `last 5`) foram **removidos completamente** — não aparecem nem em DEBUG, atendendo o princípio de "logs nunca contém secrets, nem partes deles". Falha de inicialização loga só o nome do tipo da exceção, não a mensagem (que pode incluir bytes da chave). `grep -r FERNET_DEBUG .` confirma zero ocorrências.
 
-**Fix futuro:** Remover os `print()` ou trocar por `logger.debug()` em `oauth/crypto.py`. Confirmar antes que nenhum teste/CI depende desse output. Pequeno risco residual: prefixos parciais (10 chars start + 5 end) da chave Fernet vazam pra logs persistentes.
-
-**Quando atacar:** Antes de qualquer deploy de produção que use OAuth (qualquer fatia que adicione Google Drive ou Calendar em prod). Bloqueia compliance básica.
-
-**Severidade:** baixa-média (poluição de log + leak parcial mínimo de chave; não é exploitável diretamente mas ofende princípio de "logs nunca contém secrets").
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Resolvido na:** Fatia 5.3 Parte A.
 
 ---
 
-### 🆕 `provider_user_id` ficando NULL silenciosamente após autorização OAuth
+### ✅ `provider_user_id` ficando NULL silenciosamente após autorização OAuth — PARCIALMENTE RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.1 (validação manual da autorização Google em `+5521981354432`).
 
 **Sintoma:** Após fluxo OAuth completo bem-sucedido (token salvo, refresh funcionando, scopes OK), o registro em `oauth_credentials` fica com `provider_user_id = NULL` em vez do email da conta Google que autorizou (esperado: `camila.martins@cimi360.com.br`). O `google.py:exchange_code_for_tokens` chama `_fetch_userinfo(access_token)` e o docstring documenta explicitamente "Se userinfo falhar, seguimos com `email=None`, porque ele é auditoria e não chave."
 
-**Workaround aplicado:** Nenhum — o sistema funciona sem `provider_user_id`. Mas perde rastreabilidade de qual conta Google autorizou um determinado `user_id` E.164. Em multi-tenant com clientes futuros, isso vira problema operacional ("quem do CIMI autorizou Calendar?").
+**Resolução parcial (opções (a)+(b) do plano original):** `_fetch_userinfo` agora (i) tenta até 3x com backoff 1s + 3s pra erros transientes (5xx, exceções `httpx.HTTPError`); (ii) curto-circuita em 401/403 (token rejeitado não melhora em segundos); (iii) loga falha final como `level=error` com campo `attempt` em vez de `warning` — pra `provider_user_id NULL` virar sinal acionável em prod. Timeout por tentativa caiu de 10s pra 5s pra manter o teto agregado da retry sequence (~19s) dentro do budget do callback OAuth do browser.
 
-**Fix futuro:** Três opções, em ordem de invasividade: (a) aumentar log level de `oauth_userinfo_failed` de `warning` pra `error` pra trackear quão frequente é, (b) adicionar retry com backoff antes de desistir, (c) tornar `provider_user_id` obrigatório com fail-fast no exchange — mais invasivo mas mais correto pra auditoria.
+**Pendente (opção (c) do plano original):** Tornar `provider_user_id` obrigatório com fail-fast no exchange. Mais invasivo e só faz sentido quando tivermos segundo cliente real (multi-tenant). Fica pra próxima fatia que mexer em OAuth depois de um cliente novo entrar.
 
-**Quando atacar:** Antes de adicionar segundo cliente no Gyros OS (multi-tenant real). Hoje só tem CIMI, então 1 NULL é gerenciável; com 5 clientes, vira caos.
-
-**Severidade:** média (auditoria comprometida, mas funcionalidade core OK).
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Parcialmente resolvido na:** Fatia 5.3 Parte A.
 
 ---
 
@@ -207,17 +209,11 @@ O standalone `~/Documents/cimi-automation/pipefy_to_drive.py` exibia esse 404 co
 
 ---
 
-### 🆕 `make up` não detecta mudanças de código no backend
+### ✅ `make up` não detecta mudanças de código no backend — RESOLVIDO na Fatia 5.3 Parte A
 **Descoberto em:** Fatia 5.1 (rota `/oauth/google/start` retornando 404 mesmo após adicionar `get_google_drive_client` e reiniciar com `make down && make up`).
 
-**Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não são refletidas após `make down && make up`. Container sobe com imagem antiga em cache. Sintoma típico: rota nova retorna 404, função nova lança `AttributeError`, ou comportamento antigo persiste apesar do código novo. Resolve apenas com `docker compose up -d --build` manual.
+**Sintoma:** Mudanças em arquivos Python sob `src/gyros_os/` não eram refletidas após `make down && make up`. Container subia com imagem antiga em cache. Sintoma típico: rota nova retornava 404, função nova lançava `AttributeError`, ou comportamento antigo persistia apesar do código novo. Resolvia apenas com `docker compose up -d --build` manual. Na 5.2 ficou política consciente: usar `docker compose up -d --build` explícito durante a fatia.
 
-**Workaround aplicado:** Documentar mentalmente que mudanças backend exigem `--build` explícito. Hoje na Fatia 5.1 perdi ~10min debuggando "rota não existe" antes de descobrir que era cache. Na 5.2 ficou política consciente: usar `docker compose up -d --build` explícito durante a fatia.
+**Resolução (opção (a) do plano original):** Ver entrada acima — bind mount `./src:/app/src` + `PYTHONPATH=/app/src` em `api` e `worker`, gateando `uvicorn --reload` e `python -m watchfiles` em `GYROS_DEV_MODE=true`. Reload verificado em ~2s editando `shared/config.py`.
 
-**Fix futuro:** Três opções: (a) adicionar volume bind mount em `docker-compose.yml` que mapeia `./src` pra dentro do container (hot reload, mas precisa garantir que `--reload` do uvicorn está ligado em dev), (b) criar `make up-build` no Makefile que sempre força build, (c) documentar em `docs/GETTING_STARTED.md` que mudanças backend exigem `--build`.
-
-**Quando atacar:** Junto com Railway deploy na Fatia 5.3.
-
-**Severidade:** média (custa tempo recorrente de debug em cada fatia que mexa em backend).
-
-**Adicionado na:** Fatia 5.1.
+**Adicionado na:** Fatia 5.1. **Resolvido na:** Fatia 5.3 Parte A.

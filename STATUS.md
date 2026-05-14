@@ -3,6 +3,46 @@
 Histórico curto e linear das fatias entregues. Cada entrada lista
 exatamente o que foi criado/modificado e como foi validado.
 
+## Fatia 5.3 Parte A (2026-05-14) — Pré-deploy cleanup
+
+- 5 débitos técnicos do `99-tech-debt.md` revisados antes do deploy
+  Railway da Parte B (webhook Pipefy):
+  - `[FERNET_DEBUG]` prints trocados por `logger.debug` estruturado
+    em `oauth/crypto.py` — sem prefixos/sufixos da chave Fernet
+    aparecendo nem em debug (compliance básica de logs).
+  - Bind mount `./src:/app/src` + `PYTHONPATH=/app/src` no
+    `docker-compose.yml`, gateando uvicorn `--reload` (api) e
+    `python -m watchfiles` (worker) na env `GYROS_DEV_MODE=true`.
+    Railway/Nixpacks não usa compose, então prod fica intacto.
+  - `PipefyAccessDenied` (subclasse de `PipefyError`) levantada
+    quando GraphQL responde `extensions.code=PERMISSION_DENIED` ou
+    `message="Acesso negado"`. O handler `pipefy.card_moved_to_phase`
+    captura e retorna `{"action":"skipped","reason":"card_access_denied",...}`,
+    eliminando 5 retries desperdiçados por card inacessível.
+  - `_fetch_userinfo` no provider Google ganhou retry (3 tentativas,
+    backoffs 1s + 3s) pra erros transientes/5xx, com 401/403
+    short-circuit. Log final escalado de `warning` pra `error` com
+    campo `attempt` — pra `provider_user_id NULL` virar sinal
+    acionável em prod multi-tenant.
+  - `event_queue.error` persistência: investigado e confirmado que
+    o código atual JÁ persiste error corretamente em ambos os paths
+    (retry + terminal failure). Reproduzido via `max_attempts=1` +
+    handler fireflies com `meeting_id` bogus — `event_queue.error`
+    populado com a string de erro. Débito original baseado em
+    estado transiente; sem mudança de código, marcado como resolvido.
+- Validação fim-a-fim do PipefyAccessDenied via
+  `scripts/enqueue_pipefy_event.py --card-id 1327680921`:
+  ```
+   id | status | attempts |                                     result                                     | error
+   15 | done   |        1 | {"action": "skipped", "reason": "card_access_denied", "card_id": "1327680921"} |
+  ```
+  Antes do fix: 5 retries (~50s) → `failed`. Depois: 1 tentativa →
+  `done/skipped`.
+- 6 commits na branch `feat/gyros-os-week-5-slice-3-pre-deploy-cleanup`:
+  oauth fernet, devx bind mount, devx PYTHONPATH, pipefy access denied,
+  oauth userinfo retry, docs.
+- Próximo: Fatia 5.3 Parte B (webhook Pipefy + deploy Railway).
+
 ## Fatia 5.1 (2026-05-06) — Cliente Pipefy + Drive helper
 
 - Criados:
