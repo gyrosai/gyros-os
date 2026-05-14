@@ -43,6 +43,11 @@ services:
       # Nixpacks em prod), mas o flag é explícito pra ninguém ligar
       # --reload em produção sem perceber.
       GYROS_DEV_MODE: "true"
+      # `uv pip install --system .` no Dockerfile copia o pacote pra
+      # site-packages; sem PYTHONPATH, Python preferiria essa cópia em
+      # vez de /app/src bind-mounted (testado: watchfiles reiniciava o
+      # processo, mas o processo importava do site-packages estagnado).
+      PYTHONPATH: /app/src
     volumes:
       # Bind mount do código: mudanças em ./src refletem dentro do
       # container sem rebuild. Combinado com uvicorn --reload abaixo,
@@ -79,6 +84,9 @@ services:
       # sob /app/src muda. Importante porque event_handlers/ e worker/
       # mudam toda fatia.
       GYROS_DEV_MODE: "true"
+      # Mesmo motivo do api: sem isso, o processo reinicia mas importa
+      # da cópia estagnada em site-packages.
+      PYTHONPATH: /app/src
     volumes:
       - ./src:/app/src
     command: >
