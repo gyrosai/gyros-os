@@ -22,6 +22,7 @@ import structlog
 
 from gyros_os.integrations.google_drive.drive_sync import sync_instructor_to_drive
 from gyros_os.integrations.pipefy import PipefyClient
+from gyros_os.integrations.pipefy.client import PipefyAccessDenied
 from gyros_os.integrations.pipefy.instructor import InstructorInfo
 from gyros_os.oauth.providers.google import get_google_drive_client
 from gyros_os.shared.config import settings
@@ -73,7 +74,27 @@ async def handle_pipefy_card_moved_to_phase(event: Event) -> dict:
         return ignored
 
     client = PipefyClient()
-    card = await client.get_card(card_id)
+    try:
+        card = await client.get_card(card_id)
+    except PipefyAccessDenied:
+        # Cards inacessíveis não viram acessíveis sozinhos — re-tentar
+        # 5x com backoff é puro desperdício (descoberto na Fatia 5.2 com
+        # o card 1327680921 da Cristina Gravina). Retornar `skipped`
+        # marca o evento como `succeeded` no event_queue com motivo
+        # auditável, mesmo padrão do branch `phase_not_handled`.
+        skipped = {
+            "action": "skipped",
+            "reason": "card_access_denied",
+            "card_id": str(card_id),
+        }
+        logger.warning(
+            "pipefy_event_skipped",
+            event_id=event.id,
+            card_id=card_id,
+            reason=skipped["reason"],
+        )
+        return skipped
+
     info = InstructorInfo.from_card(card)
 
     logger.info(

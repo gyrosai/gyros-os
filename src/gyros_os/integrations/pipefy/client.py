@@ -118,6 +118,24 @@ class PipefyNotFound(PipefyError):
     """Card/fase não encontrado (HTTP 404 ou null no response)."""
 
 
+class PipefyAccessDenied(PipefyError):
+    """Card existe mas a conta autenticada não tem permissão de leitura.
+
+    Pipefy retorna isso quando o card foi movido pra outro pipe, arquivado,
+    ou a equipe perdeu acesso por reorganização (visto no card 1327680921
+    da CIMI na Fatia 5.2). É diferente de `PipefyNotFound`: re-tentar não
+    resolve, porque o estado de permissão não vai mudar sozinho.
+
+    A resposta GraphQL típica é HTTP 200 com `data.card = null` e
+    `errors[0].extensions.code == "PERMISSION_DENIED"` (`message`:
+    "Acesso negado").
+    """
+
+    def __init__(self, message: str, card_id: str | None = None) -> None:
+        super().__init__(message)
+        self.card_id = card_id
+
+
 # ---------- Modelos ----------
 
 
@@ -231,10 +249,33 @@ class PipefyClient:
         payload = response.json()
 
         # GraphQL pode devolver 200 com erros no body. Diferenciamos
-        # "não encontrado" de erros gerais inspecionando a mensagem,
-        # porque a API não usa códigos de erro estruturados aqui.
+        # "não encontrado" e "permissão negada" de erros gerais — a API
+        # usa `extensions.code` quando é caso de permissão (estável e
+        # locale-independent), e mensagem livre pro resto.
         if "errors" in payload:
-            error_msg = payload["errors"][0].get("message", "Erro GraphQL")
+            first_error = payload["errors"][0] or {}
+            error_msg = first_error.get("message", "Erro GraphQL")
+            extensions = first_error.get("extensions") or {}
+            code = extensions.get("code")
+
+            # Pipefy usa code="PERMISSION_DENIED" quando o token é
+            # válido mas a conta não pode ler o recurso (card movido
+            # de pipe, arquivado, etc). Caímos no fallback de mensagem
+            # se algum dia a API mudar e parar de mandar `extensions`.
+            is_access_denied = code == "PERMISSION_DENIED" or (
+                "acesso negado" in error_msg.lower()
+            )
+            if is_access_denied:
+                card_id = variables.get("cardId") if isinstance(variables, dict) else None
+                logger.warning(
+                    "pipefy_access_denied",
+                    error=error_msg,
+                    code=code,
+                    card_id=card_id,
+                    latency_ms=latency_ms,
+                )
+                raise PipefyAccessDenied(error_msg, card_id=card_id)
+
             logger.error(
                 "pipefy_graphql_error",
                 error=error_msg,
