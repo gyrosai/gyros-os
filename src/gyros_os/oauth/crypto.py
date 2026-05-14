@@ -20,11 +20,12 @@ Regras:
 
 from __future__ import annotations
 
+import structlog
 from cryptography.fernet import Fernet
 
 from gyros_os.shared.config import settings
 
-_fernet: Fernet | None = None
+logger = structlog.get_logger()
 
 _ENV_VAR = "OAUTH_TOKEN_ENCRYPTION_KEY"
 
@@ -41,24 +42,31 @@ def _get_fernet() -> Fernet:
 
     key_secret = settings.oauth_token_encryption_key
     if key_secret is None:
-        print("[FERNET_DEBUG] oauth_token_encryption_key is None")
+        # Não loga prefixos da chave nem em debug — princípio "logs nunca
+        # contém secrets". Mensagem da RuntimeError é suficiente pra
+        # operador entender o problema.
         raise RuntimeError(
             "OAUTH_TOKEN_ENCRYPTION_KEY não configurada ou inválida — "
             "gere uma com Fernet.generate_key()"
         )
 
     raw = key_secret.get_secret_value()
-    print(f"[FERNET_DEBUG] raw length: {len(raw)}")
-    print(f"[FERNET_DEBUG] first 10: {repr(raw[:10])}")
-    print(f"[FERNET_DEBUG] last 5: {repr(raw[-5:])}")
-    print(f"[FERNET_DEBUG] has whitespace: {raw != raw.strip()}")
-    print(f"[FERNET_DEBUG] has newline: {chr(10) in raw or chr(13) in raw}")
+    has_whitespace = raw != raw.strip()
+    has_newline = chr(10) in raw or chr(13) in raw
+    logger.debug("fernet_key_loaded", length=len(raw))
+    logger.debug(
+        "fernet_key_validated",
+        has_whitespace=has_whitespace,
+        has_newline=has_newline,
+    )
 
     try:
         _fernet = Fernet(raw.encode())
-        print("[FERNET_DEBUG] Fernet initialized OK")
+        logger.debug("fernet_initialized")
     except Exception as exc:
-        print(f"[FERNET_DEBUG] Fernet init FAILED: {type(exc).__name__}: {exc}")
+        # Loga só o tipo da exceção — a mensagem do cryptography pode
+        # incluir bytes da chave ao reclamar de formato inválido.
+        logger.error("fernet_init_failed", exc_type=type(exc).__name__)
         raise
 
     return _fernet
