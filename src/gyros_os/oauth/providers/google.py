@@ -23,6 +23,7 @@ Pontos importantes:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -156,30 +157,76 @@ def build_authorization_url(*, state: str) -> str:
     return auth_url
 
 
+# 3 tentativas totais, 2 backoffs entre elas (1s, 3s). Teto agregado
+# de ~4s + 3x latência HTTP — curto porque o callback OAuth é síncrono
+# do ponto de vista do browser (não queremos travar a Camila no
+# redirect). 5xx e exceções httpx retentam; 401/403 não — token
+# quebrado não melhora em segundos.
+_USERINFO_TOTAL_ATTEMPTS = 3
+_USERINFO_RETRY_BACKOFF_SECONDS = (1, 3)
+
+
 async def _fetch_userinfo(access_token: str) -> str | None:
     """GET /oauth2/v2/userinfo — retorna email ou None em caso de erro.
 
+    Tenta até 3x com backoff (1s, 3s) entre tentativas pra erros
+    transientes de rede e 5xx. 401/403 NÃO retentam — token tá
+    quebrado e não vai melhorar em segundos. Falha final é logada com
+    `level=error` (não warning) pra surgir na monitoria de prod: hoje
+    1 NULL em provider_user_id é gerenciável; com multi-tenant o sinal
+    de falha precisa ser acionável.
+
     Não aborta autorização se userinfo falhar — o email é auditoria,
-    não é chave. Log específico pra distinguir de outras falhas.
+    não é chave. Comportamento de fallback (`email=None`) preservado.
     """
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                _USERINFO_URI,
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-        if resp.status_code != 200:
+    for attempt in range(1, _USERINFO_TOTAL_ATTEMPTS + 1):
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(
+                    _USERINFO_URI,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+
+            if resp.status_code == 200:
+                data = resp.json()
+                email = data.get("email")
+                return email if isinstance(email, str) else None
+
+            # 401/403 significa token quebrado/revogado — retry só
+            # desperdiça tempo no callback OAuth do usuário.
+            if resp.status_code in (401, 403):
+                logger.error(
+                    "oauth_userinfo_failed",
+                    status_code=resp.status_code,
+                    attempt=attempt,
+                    reason="token_rejected",
+                )
+                return None
+
+            transient_error = f"http_{resp.status_code}"
+        except httpx.HTTPError as e:
+            transient_error = f"{type(e).__name__}: {e}"
+
+        if attempt < _USERINFO_TOTAL_ATTEMPTS:
+            backoff = _USERINFO_RETRY_BACKOFF_SECONDS[attempt - 1]
             logger.warning(
-                "oauth_userinfo_failed",
-                status_code=resp.status_code,
+                "oauth_userinfo_retry",
+                error=transient_error,
+                attempt=attempt,
+                backoff_seconds=backoff,
             )
-            return None
-        data = resp.json()
-        email = data.get("email")
-        return email if isinstance(email, str) else None
-    except httpx.HTTPError as e:
-        logger.warning("oauth_userinfo_failed", error=str(e))
+            await asyncio.sleep(backoff)
+            continue
+
+        logger.error(
+            "oauth_userinfo_failed",
+            error=transient_error,
+            attempt=attempt,
+            reason="retries_exhausted",
+        )
         return None
+
+    return None
 
 
 async def exchange_code_for_tokens(*, code: str) -> GoogleTokenResponse:
