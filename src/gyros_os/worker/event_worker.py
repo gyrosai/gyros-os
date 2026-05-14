@@ -16,11 +16,15 @@ from gyros_os.shared.event_queue import (
 from gyros_os.worker.event_handlers.fireflies import (
     handle_fireflies_transcription_completed,
 )
+from gyros_os.worker.event_handlers.pipefy import (
+    handle_pipefy_card_moved_to_phase,
+)
 
 logger = structlog.get_logger("event_worker")
 
 HANDLERS = {
     "fireflies.transcription_completed": handle_fireflies_transcription_completed,
+    "pipefy.card_moved_to_phase": handle_pipefy_card_moved_to_phase,
 }
 
 
