@@ -6,6 +6,40 @@ severidade.
 
 ---
 
+### 🆕 `Acesso negado` do Pipefy é retentado desnecessariamente
+**Descoberto em:** Fatia 5.2 Checkpoint 3 (validação fim-a-fim).
+
+**Sintoma:** Quando `PipefyClient.get_card(card_id)` retorna `"Acesso negado"` (card foi movido pra outro pipe, arquivado, ou perdeu permissão), o handler propaga como exceção genérica e o `event_worker` retenta 5x com backoff (5+10+15+20s = ~50s totais) antes de marcar `failed`. Em produção, descobrimos isso quando o card 1327680921 (Cristina Gravina) ficou inacessível entre uma execução e outra — provavelmente movido pela equipe da CIMI no Pipefy.
+
+**Workaround aplicado:** Nenhum — o comportamento de retry funciona, só é desperdício de quota Pipefy + atraso na propagação de eventos posteriores na fila.
+
+**Fix futuro:** Em `gyros_os/integrations/pipefy/client.py`, identificar a resposta GraphQL `Acesso negado` e levantar exceção dedicada `PipefyAccessDenied` (paralela a `PipefyNotFound`). No handler de `pipefy.card_moved_to_phase`, capturar essa exceção e retornar `{"action": "skipped", "reason": "card_access_denied", "card_id": ...}` (mesmo padrão do branch `phase_not_handled`). Sem retry.
+
+**Quando atacar:** Fatia 5.3, junto com webhook real — quando o volume de eventos aumentar, retry desperdiçado vira gargalo perceptível. Pode atacar antes se Claudino mover cards com frequência.
+
+**Severidade:** média (desperdício de API quota + atraso na fila, mas não bloqueia funcionalidade core).
+
+**Adicionado na:** Fatia 5.2 Checkpoint 3.
+
+---
+
+### 🆕 `event_queue.error` fica NULL após failure mesmo com error message disponível
+**Descoberto em:** Fatia 5.2 Checkpoint 3 (evento 11 falhou 5x com `Acesso negado`).
+
+**Sintoma:** Quando um evento falha definitivamente (esgotou retries), os logs do `event_worker` mostram a string de erro (`error="Acesso negado"`), mas a coluna `event_queue.error` na linha correspondente fica `NULL`. Verificado em `SELECT id, status, result, error FROM event_queue WHERE id = 11;` — coluna `error` veio vazia.
+
+**Workaround aplicado:** Nenhum. Os logs do worker capturam o erro, mas só ficam disponíveis durante a janela de retenção do Docker/Railway. Auditoria histórica de eventos failed via banco fica comprometida.
+
+**Fix futuro:** Em `gyros_os/shared/event_queue.py`, no `mark_event_failed` (ou equivalente), garantir que o argumento `error` seja efetivamente gravado na coluna `event_queue.error` via UPDATE. Provável bug: a função recebe o argumento mas não inclui na cláusula UPDATE, ou só usa quando há retry restante e não no terminal failure.
+
+**Quando atacar:** Fatia 5.3, antes do deploy de produção. Sem isso, operação real (Milena vê evento failed e quer entender por quê) só consegue diagnosticar via logs Railway — pior UX.
+
+**Severidade:** média (perde rastreabilidade no banco para eventos failed; logs eventualmente rotacionam).
+
+**Adicionado na:** Fatia 5.2 Checkpoint 3.
+
+---
+
 ### 🆕 `camila.martins@cimi360.com.br` sem permissão de delete/trash no Shared Drive `0AMWOAOVQ2sFvUk9PVA`
 **Descoberto em:** Fatia 5.2 Checkpoint 2.
 
