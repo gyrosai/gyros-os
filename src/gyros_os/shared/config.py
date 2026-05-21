@@ -138,6 +138,13 @@ class Settings(BaseSettings):
     # --- Drive (CIMI Curadoria) ---
     drive_parent_folder_instrutores: str = ""
 
+    # --- Fatia 5.2: Drive sync (Pipefy → Drive) ---
+    # E.164 com `+` — user_id que tem credencial Google autorizada com
+    # scope `drive` e permissão de escrita no Shared Drive da CIMI.
+    pipefy_drive_user_id: str = ""
+    # ID do Shared Drive (não a pasta-mãe — esse é o drive root).
+    pipefy_drive_id: str = ""
+
     def get_features_enabled(self) -> set[str]:
         """Parse CSV de features ativas (lowercase, trim)."""
         return {

@@ -3,6 +3,46 @@
 Histórico curto e linear das fatias entregues. Cada entrada lista
 exatamente o que foi criado/modificado e como foi validado.
 
+## Fatia 5.3 Parte A (2026-05-14) — Pré-deploy cleanup
+
+- 5 débitos técnicos do `99-tech-debt.md` revisados antes do deploy
+  Railway da Parte B (webhook Pipefy):
+  - `[FERNET_DEBUG]` prints trocados por `logger.debug` estruturado
+    em `oauth/crypto.py` — sem prefixos/sufixos da chave Fernet
+    aparecendo nem em debug (compliance básica de logs).
+  - Bind mount `./src:/app/src` + `PYTHONPATH=/app/src` no
+    `docker-compose.yml`, gateando uvicorn `--reload` (api) e
+    `python -m watchfiles` (worker) na env `GYROS_DEV_MODE=true`.
+    Railway/Nixpacks não usa compose, então prod fica intacto.
+  - `PipefyAccessDenied` (subclasse de `PipefyError`) levantada
+    quando GraphQL responde `extensions.code=PERMISSION_DENIED` ou
+    `message="Acesso negado"`. O handler `pipefy.card_moved_to_phase`
+    captura e retorna `{"action":"skipped","reason":"card_access_denied",...}`,
+    eliminando 5 retries desperdiçados por card inacessível.
+  - `_fetch_userinfo` no provider Google ganhou retry (3 tentativas,
+    backoffs 1s + 3s) pra erros transientes/5xx, com 401/403
+    short-circuit. Log final escalado de `warning` pra `error` com
+    campo `attempt` — pra `provider_user_id NULL` virar sinal
+    acionável em prod multi-tenant.
+  - `event_queue.error` persistência: investigado e confirmado que
+    o código atual JÁ persiste error corretamente em ambos os paths
+    (retry + terminal failure). Reproduzido via `max_attempts=1` +
+    handler fireflies com `meeting_id` bogus — `event_queue.error`
+    populado com a string de erro. Débito original baseado em
+    estado transiente; sem mudança de código, marcado como resolvido.
+- Validação fim-a-fim do PipefyAccessDenied via
+  `scripts/enqueue_pipefy_event.py --card-id 1327680921`:
+  ```
+   id | status | attempts |                                     result                                     | error
+   15 | done   |        1 | {"action": "skipped", "reason": "card_access_denied", "card_id": "1327680921"} |
+  ```
+  Antes do fix: 5 retries (~50s) → `failed`. Depois: 1 tentativa →
+  `done/skipped`.
+- 6 commits na branch `feat/gyros-os-week-5-slice-3-pre-deploy-cleanup`:
+  oauth fernet, devx bind mount, devx PYTHONPATH, pipefy access denied,
+  oauth userinfo retry, docs.
+- Próximo: Fatia 5.3 Parte B (webhook Pipefy + deploy Railway).
+
 ## Fatia 5.1 (2026-05-06) — Cliente Pipefy + Drive helper
 
 - Criados:
@@ -26,3 +66,70 @@ exatamente o que foi criado/modificado e como foi validado.
   - ✓ Drive: auth OAuth + connect ao Shared Drive `0AMWOAOVQ2sFvUk9PVA` funcionando.
 - Débitos técnicos identificados (ver `99-tech-debt.md`).
 - Próximo: Fatia 5.2 (drive_sync + handler de evento Pipefy).
+
+## Fatia 5.2 (2026-05-13) — Drive sync + handler Pipefy
+
+- Criados:
+  - `src/gyros_os/integrations/google_drive/__init__.py`
+  - `src/gyros_os/integrations/google_drive/helpers.py`
+    (kwargs `supportsAllDrives` / `includeItemsFromAllDrives` para
+    Shared Drives, extraído como helper único usado pelo `drive_sync`)
+  - `src/gyros_os/integrations/google_drive/drive_sync.py`
+    (`sync_instructor_to_drive` idempotente — pasta por slug do nome,
+    `foto_<slug>` sem delete, `informacoes.md` com upsert por nome;
+    `SyncResult` com flags `folder_action`, `photo_action`,
+    `info_action` pra audit em `event_queue.result`)
+  - `src/gyros_os/integrations/pipefy/field_mapping.py`
+    (mapa `field_id → atributo` do pipe CIMI360 Curadoria 2026)
+  - `src/gyros_os/integrations/pipefy/instructor.py`
+    (`InstructorInfo` Pydantic + `InstructorInfo.from_card` — usa
+    `field_mapping` + `PipefyClient.extract_field` pra extrair os
+    22 campos necessários ao Drive a partir do `CardData`)
+  - `src/gyros_os/worker/event_handlers/pipefy.py`
+    (`handle_pipefy_card_moved_to_phase` — filtra por `phase_id`
+    estável, busca card, monta `InstructorInfo`, chama `drive_sync`;
+    fase ignorada retorna `{"action": "ignored", ...}` sem erro)
+  - `scripts/test_drive_sync.py` (smoke test standalone do
+    `sync_instructor_to_drive` — usado no Checkpoint 2)
+  - `scripts/enqueue_pipefy_event.py` (CLI pra enfileirar
+    `pipefy.card_moved_to_phase` manualmente — usado no Checkpoint 3
+    pra validar fim-a-fim via worker rodando, sem precisar de webhook)
+- Modificados:
+  - `src/gyros_os/shared/config.py` — adicionados
+    `pipefy_drive_user_id` (E.164 com `+` do dono dos tokens OAuth
+    Drive que o handler usa) e `drive_parent_folder_instrutores`
+    (folder pai onde as pastas dos instrutores moram).
+  - `src/gyros_os/worker/event_worker.py` — `HANDLERS` recebeu
+    `"pipefy.card_moved_to_phase": handle_pipefy_card_moved_to_phase`.
+  - `src/gyros_os/worker/event_handlers/__init__.py` — re-export do
+    `handle_pipefy_card_moved_to_phase`.
+  - `scripts/test_pipefy_drive.py` — passou a usar
+    `drive_helpers.supports_all_drives_kwargs()` em vez de inline
+    (consistência com o `drive_sync` real).
+  - `.env.example` — variáveis novas `PIPEFY_DRIVE_USER_ID` e
+    `DRIVE_PARENT_FOLDER_INSTRUTORES`.
+- Validado em 12–13/maio/2026 via `event_queue` real (worker
+  Docker processando, eventos enfileirados com
+  `scripts/enqueue_pipefy_event.py`):
+  - ✓ Evento 9 — card novo (Ana Tedoldi `1323177433`):
+    `folder_action=created`, `photo_action=created`,
+    `info_action=created`.
+  - ✓ Evento 10 — `phase_id` errado: handler retornou
+    `{"action": "ignored", "reason": "phase_not_handled"}` sem
+    chamar Pipefy nem Drive; `event_queue.status=succeeded`.
+  - ✓ Evento 12 — re-enqueue do mesmo card (Ana Tedoldi):
+    `folder_action=existing`, `photo_action=updated`,
+    `info_action=updated` → idempotência confirmada.
+  - Nota: card `1327680921` (Cristina Gravina) ficou
+    `Acesso negado` no Pipefy entre Checkpoint 2 e Checkpoint 3
+    (provavelmente movido pela equipe CIMI). Substituído por
+    Ana Tedoldi (`1323177433`) na validação. Descoberta
+    registrada como débito técnico (retry desnecessário em
+    `Acesso negado`).
+- 2 débitos técnicos novos (ver `99-tech-debt.md`):
+  retry desnecessário em `Acesso negado` do Pipefy, e
+  `event_queue.error` ficando `NULL` após failure terminal.
+- PR: `feat/gyros-os-week-5-slice-2-drive-sync` — aguardando
+  code review (não mergeada).
+- Próximo: Fatia 5.3 (webhook Pipefy + deploy Railway + os
+  2 tech debts críticos acima).

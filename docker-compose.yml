@@ -39,6 +39,28 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/gyros_os
       LOG_JSON: "true"
       INTERNAL_SERVICE_TOKEN: dev-token-change-in-production
+      # Liga hot reload de uvicorn. Compose é dev-only (Railway usa
+      # Nixpacks em prod), mas o flag é explícito pra ninguém ligar
+      # --reload em produção sem perceber.
+      GYROS_DEV_MODE: "true"
+      # `uv pip install --system .` no Dockerfile copia o pacote pra
+      # site-packages; sem PYTHONPATH, Python preferiria essa cópia em
+      # vez de /app/src bind-mounted (testado: watchfiles reiniciava o
+      # processo, mas o processo importava do site-packages estagnado).
+      PYTHONPATH: /app/src
+    volumes:
+      # Bind mount do código: mudanças em ./src refletem dentro do
+      # container sem rebuild. Combinado com uvicorn --reload abaixo,
+      # tira o passo manual `docker compose up -d --build` que custou
+      # ~10min/fatia nas últimas duas. Não toca em Dockerfile.api, então
+      # `docker build` sozinho continua produzindo imagem prod-safe.
+      - ./src:/app/src
+    command: >
+      sh -c 'if [ "$$GYROS_DEV_MODE" = "true" ]; then
+               exec uvicorn gyros_os.server.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src;
+             else
+               exec uvicorn gyros_os.server.main:app --host 0.0.0.0 --port 8000;
+             fi'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 5s
@@ -58,6 +80,21 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/gyros_os
       LOG_JSON: "true"
       TWILIO_OUTBOUND_MODE: ${TWILIO_OUTBOUND_MODE:-mock}
+      # Mesmo flag do api — watchfiles reinicia o processo quando algo
+      # sob /app/src muda. Importante porque event_handlers/ e worker/
+      # mudam toda fatia.
+      GYROS_DEV_MODE: "true"
+      # Mesmo motivo do api: sem isso, o processo reinicia mas importa
+      # da cópia estagnada em site-packages.
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src
+    command: >
+      sh -c 'if [ "$$GYROS_DEV_MODE" = "true" ]; then
+               exec python -m watchfiles "python -m gyros_os.worker.main" /app/src;
+             else
+               exec python -m gyros_os.worker.main;
+             fi'
     depends_on:
       db:
         condition: service_healthy
